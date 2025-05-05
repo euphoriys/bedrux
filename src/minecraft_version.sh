@@ -120,6 +120,19 @@ list_instances() {
     return 0
 }
 
+# Function for creating a backup of an instance
+create_backup() {
+    local instance_dir=$1
+    local backup_dir="backups"
+    mkdir -p "$backup_dir"
+    local timestamp=$(date +"%Y%m%d_%H%M%S")
+    local backup_file="$backup_dir/${instance_dir}_backup_$timestamp.tar.gz"
+
+    echo "Create backup for instance: $instance_dir..."
+    tar -czf "$backup_file" "$instance_dir" || { echo "Error when creating the backup."; exit 1; }
+    echo "Backup successfully created: $backup_file"
+}
+
 # Function to replace the bedrock_server executable in an existing instance
 replace_version() {
     local instance_dir=$1
@@ -150,9 +163,10 @@ echo "Choose an option:"
 echo "1. Create a new instance"
 echo "2. Replace the server version in an existing instance"
 echo "3. Overwrite an existing instance"
-read -p "Enter your choice [1-3]: " option
+echo "4. Create a backup of an existing instance"
+read -p "Enter your choice [1-4]: " option
 
-if [[ "$option" -ne 1 && "$option" -ne 2 && "$option" -ne 3 ]]; then
+if [[ "$option" -ne 1 && "$option" -ne 2 && "$option" -ne 3 && "$option" -ne 4 ]]; then
     echo "Invalid option."
     exit 1
 fi
@@ -171,6 +185,19 @@ if [ "$option" -eq 1 ]; then
     determine_url "$choice"
     download_and_validate
     setup_server "$instance_name"
+
+elif [ "$option" -eq 4 ]; then
+    if ! list_instances; then
+        exit 1
+    fi
+    read -p "Enter the name of the instance to be backed up: " instance_dir
+    if [ ! -d "$instance_dir" ]; then
+        echo "Instance $instance_dir does not exist."
+        exit 1
+    fi
+    create_backup "$instance_dir"
+    exit 0
+
 else
     if ! list_instances; then
         exit 1
