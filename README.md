@@ -6,6 +6,9 @@
 
 ---
 
+> [!WARNING]
+> This script doesn't work currently!
+
 ## 🚀 Features
 
 - [x] Fetches the latest release or preview version of the Minecraft Bedrock server.
