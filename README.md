@@ -12,6 +12,7 @@
 - [x] Allows users to manually specify a version.
 - [x] Downloads and validates the server files.
 - [x] Creates start and autostart scripts for server management.
+- [x] Backup and restore functionality for server instances.
 - [x] Supports creating, replacing, and overwriting server instances.
 - [x] AMD64 and AARCH64 support.
 - [x] Automatic handling of downloads and unzipping with simple commands.
