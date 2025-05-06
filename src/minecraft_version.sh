@@ -231,8 +231,15 @@ elif [ "$option" -eq 5 ]; then
         target_instance_name="$backup_instance_name"
     fi
 
-    if [ ! -d "./$target_instance_name" ]; then
-    echo "Warning: Target instance $target_instance_name does not exist. A new instance will be created."
+    if [ -d "./$target_instance_name" ]; then
+        echo "WARNING: The folder '$target_instance_name' will be deleted and replaced with the backup."
+        read -p "Are you sure you want to continue? [y/N]: " confirm
+        if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+            echo "Operation canceled."
+            exit 0
+        fi
+    else
+        echo "Warning: Target instance $target_instance_name does not exist. A new instance will be created."
     fi
 
     echo "Deleting existing instance folder $target_instance_name in /src..."
