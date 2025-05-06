@@ -200,11 +200,21 @@ elif [ "$option" -eq 4 ]; then
     exit 0
 
 elif [ "$option" -eq 5 ]; then
+    if [ ! -d "backups" ]; then
+        echo "Error: The 'backups' folder does not exist."
+        echo "Please create a backup first using Option 4."
+        exit 1
+    fi
+
     backups_count=$(ls backups/*.tar.gz 2>/dev/null | wc -l)
     if [ "$backups_count" -eq 1 ]; then
         backup_name=$(ls backups/*.tar.gz)
         backup_name=$(basename "$backup_name")
         echo "Automatically selected backup: $backup_name"
+    elif [ "$backups_count" -eq 0 ]; then
+        echo "Error: No backup files found in the 'backups' folder."
+        echo "Please create a backup first using Option 4."
+        exit 1
     else
         echo "Available backups:"
         ls backups/
@@ -238,12 +248,11 @@ elif [ "$option" -eq 5 ]; then
             echo "Operation canceled."
             exit 0
         fi
+        echo "Deleting existing instance folder $target_instance_name in /src..."
+        rm -rf "./$target_instance_name"
     else
         echo "Warning: Target instance $target_instance_name does not exist. A new instance will be created."
     fi
-
-    echo "Deleting existing instance folder $target_instance_name in /src..."
-    rm -rf "./$target_instance_name"
 
     echo "Restoring backup $backup_file to /src/$target_instance_name..."
     mkdir -p "./$target_instance_name"
