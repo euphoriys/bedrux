@@ -164,9 +164,10 @@ echo "1. Create a new instance"
 echo "2. Replace the server version in an existing instance"
 echo "3. Overwrite an existing instance"
 echo "4. Create a backup of an existing instance"
-read -p "Enter your choice [1-4]: " option
+echo "5. Load a backup"
+read -p "Enter your choice [1-5]: " option
 
-if [[ "$option" -ne 1 && "$option" -ne 2 && "$option" -ne 3 && "$option" -ne 4 ]]; then
+if [[ "$option" -ne 1 && "$option" -ne 2 && "$option" -ne 3 && "$option" -ne 4 && "$option" -ne 5 ]]; then
     echo "Invalid option."
     exit 1
 fi
@@ -196,6 +197,57 @@ elif [ "$option" -eq 4 ]; then
         exit 1
     fi
     create_backup "$instance_dir"
+    exit 0
+
+elif [ "$option" -eq 5 ]; then
+    backups_count=$(ls backups/*.tar.gz 2>/dev/null | wc -l)
+    if [ "$backups_count" -eq 1 ]; then
+        backup_name=$(ls backups/*.tar.gz)
+        backup_name=$(basename "$backup_name")
+        echo "Automatically selected backup: $backup_name"
+    else
+        echo "Available backups:"
+        ls backups/
+        read -p "Enter the name of the backup file (e.g., your_backup.tar.gz): " backup_name
+    fi
+
+    backup_file="backups/$backup_name"
+    if [ ! -f "$backup_file" ]; then
+        echo "Backup file $backup_file does not exist."
+        exit 1
+    fi
+
+    backup_instance_name=$(echo "$backup_name" | sed -E 's/_backup_[0-9]{8}_[0-9]{6}\.tar\.gz$//')
+    if [ -z "$backup_instance_name" ]; then
+        echo "Error: Could not determine the instance name from the backup file."
+        exit 1
+    fi
+
+    if ! list_instances; then
+        exit 1
+    fi
+    read -p "Enter the name of the instance to replace (or leave empty to use the backup's original name '$backup_instance_name'): " target_instance_name
+    if [ -z "$target_instance_name" ]; then
+        target_instance_name="$backup_instance_name"
+    fi
+
+    if [ ! -d "./$target_instance_name" ]; then
+    echo "Warning: Target instance $target_instance_name does not exist. A new instance will be created."
+    fi
+
+    echo "Deleting existing instance folder $target_instance_name in /src..."
+    rm -rf "./$target_instance_name"
+
+    echo "Restoring backup $backup_file to /src/$target_instance_name..."
+    mkdir -p "./$target_instance_name"
+    tar --strip-components=1 -xzf "$backup_file" -C "./$target_instance_name" || { echo "Error when restoring the backup."; exit 1; }
+
+    if [ "$(ls -A "./$target_instance_name")" ]; then
+        echo "Backup successfully restored to /src/$target_instance_name."
+    else
+        echo "Error: Backup restoration failed. Target directory is empty."
+        exit 1
+    fi
     exit 0
 
 else
