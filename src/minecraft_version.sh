@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Ensure the script runs in its own directory
+cd "$(dirname "$0")" || exit 1
+
 # Function to fetch the latest release or preview version
 fetch_version() {
     local pattern=$1

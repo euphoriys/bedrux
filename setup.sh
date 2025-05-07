@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Ensure the script runs in its own directory
+cd "$(dirname "$0")" || exit 1
+
 echo "Setting up Bedrock server environment..."
 
 # Step 1: Update packages and install necessary tools

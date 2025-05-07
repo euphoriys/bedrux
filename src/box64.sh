@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Ensure the script runs in its own directory
+cd "$(dirname "$0")" || exit 1
+
 # Function to remove existing Box64 sources and keyring
 remove_existing_sources() {
     if [ -f /etc/apt/sources.list.d/box64.list ]; then
