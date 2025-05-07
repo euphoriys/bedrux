@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Ensure the script always runs from its own directory
+cd "$(dirname "$0")" || exit 1
+
 BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
 INSTANCES_DIR="$BASE_DIR/../instances"
 BACKUP_DIR="$BASE_DIR/../backups"
