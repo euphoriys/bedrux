@@ -74,6 +74,21 @@ replace_version() {
     fi
 }
 
+# Function to overwrite an existing instance
+# Deletes the existing instance directory and sets up a new server instance
+overwrite_instance() {
+    local instance_dir="$INSTANCES_DIR/$1"
+    if [ -d "$instance_dir" ]; then
+        echo "Overwriting instance: ${1}..."
+        rm -rf "$instance_dir" || { echo "Error: Failed to delete the existing instance."; exit 1; }
+        setup_server "$1"
+        echo "Instance ${1} overwritten successfully."
+    else
+        echo "Error: Instance ${1} does not exist."
+        exit 1
+    fi
+}
+
 # Function to create a start script for the server
 # Uses Box64 if available, otherwise runs the server directly
 create_start_script() {
