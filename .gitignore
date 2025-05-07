@@ -1,0 +1,3 @@
+# Exclude backups and instances directories
+/backups/
+/instances/
