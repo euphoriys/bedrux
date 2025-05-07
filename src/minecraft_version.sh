@@ -1,5 +1,9 @@
 #!/bin/bash
 
+BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
+INSTANCES_DIR="$BASE_DIR/../instances"
+BACKUP_DIR="$BASE_DIR/../backups"
+
 # Function to fetch the latest release or preview version
 fetch_version() {
     local pattern=$1
@@ -95,66 +99,69 @@ done' > autostart.sh
 
 # Function to set up the server
 setup_server() {
-    local instance_name=$1
+    local instance_name="$1"
+    local path="$INSTANCES_DIR/$instance_name"
+    local zip_path="$PWD/bedrockserver_tmp.zip"
+
     echo "Unzipping the downloaded file..."
-    mkdir -p "$instance_name"
-    cd "$instance_name"
-    unzip -q "../bedrockserver_tmp.zip" && rm "../bedrockserver_tmp.zip"
+    mkdir -p "$path"
+    cd "$path" || exit
+    unzip -q "$zip_path" && rm "$zip_path"
     create_start_script
     create_autostart_script
     echo "Unzipping completed."
-    echo "Setup completed. To start the server, navigate to the '$instance_name' directory and run './start.sh'."
+    echo "Setup completed. To start the server, navigate to '$path' and run './start.sh'."
 }
 
 # Function to list existing instances
 list_instances() {
-    local instances=($(find . -type f -name "bedrock_server" -exec dirname {} \; | sort -u))
+    local instances=($(find "$INSTANCES_DIR" -type f -name "bedrock_server" -exec dirname {} \; | sort -u))
     if [ ${#instances[@]} -eq 0 ]; then
         echo "No instances found."
         return 1
     fi
     echo "Existing instances:"
     for instance in "${instances[@]}"; do
-        echo "${instance#./}"
+        echo "${instance#$INSTANCES_DIR/}"
     done
     return 0
 }
 
 # Function for creating a backup of an instance
 create_backup() {
-    local instance_dir=$1
-    local backup_dir="backups"
-    mkdir -p "$backup_dir"
+    local instance_dir="$1"
+    mkdir -p "$BACKUP_DIR"
     local timestamp=$(date +"%Y%m%d_%H%M%S")
-    local backup_file="$backup_dir/${instance_dir}_backup_$timestamp.tar.gz"
-
+    local backup_file="$BACKUP_DIR/${instance_dir}_backup_$timestamp.tar.gz"
     echo "Create backup for instance: $instance_dir..."
-    tar -czf "$backup_file" "$instance_dir" || { echo "Error when creating the backup."; exit 1; }
+    tar -czf "$backup_file" -C "$INSTANCES_DIR" "$instance_dir" || { echo "Error when creating the backup."; exit 1; }
     echo "Backup successfully created: $backup_file"
 }
 
 # Function to replace the bedrock_server executable in an existing instance
 replace_version() {
-    local instance_dir=$1
-    if [ -d "$instance_dir" ]; then
-        unzip -o -j "bedrockserver_tmp.zip" "bedrock_server" -d "$instance_dir" > /dev/null
-        rm "bedrockserver_tmp.zip"
-        echo "Instance ${instance_dir#./} updated successfully."
+    local instance_dir="$1"
+    local path="$INSTANCES_DIR/$instance_dir"
+    if [ -d "$path" ]; then
+        unzip -o -j "../../../bedrockserver_tmp.zip" "bedrock_server" -d "$path" > /dev/null
+        rm "../../../bedrockserver_tmp.zip"
+        echo "Instance $instance_dir updated successfully."
     else
-        echo "Instance ${instance_dir#./} does not exist."
+        echo "Instance $instance_dir does not exist."
         exit 1
     fi
 }
 
 # Function to overwrite an existing instance
 overwrite_instance() {
-    local instance_dir=$1
-    if [ -d "$instance_dir" ]; then
-        rm -rf "$instance_dir"
+    local instance_dir="$1"
+    local path="$INSTANCES_DIR/$instance_dir"
+    if [ -d "$path" ]; then
+        rm -rf "$path"
         setup_server "$instance_dir"
-        echo "Instance ${instance_dir#./} overwritten successfully."
+        echo "Instance $instance_dir overwritten successfully."
     else
-        echo "Instance ${instance_dir#./} does not exist."
+        echo "Instance $instance_dir does not exist."
         exit 1
     fi
 }
@@ -192,7 +199,7 @@ elif [ "$option" -eq 4 ]; then
         exit 1
     fi
     read -p "Enter the name of the instance to be backed up: " instance_dir
-    if [ ! -d "$instance_dir" ]; then
+    if [ ! -d "$INSTANCES_DIR/$instance_dir" ]; then
         echo "Instance $instance_dir does not exist."
         exit 1
     fi
