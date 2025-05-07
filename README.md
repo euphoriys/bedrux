@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="bedrux.png" alt="Bedrux Logo" width="300" height="300">
+  <img src="assets/bedrux.png" alt="Bedrux Logo" width="300" height="300">
   <h1 align="center">Bedrux</h1>
   <h3>Create a Minecraft Bedrock Dedicated Server using Termux on Android</h3>
 </div>
@@ -22,13 +22,20 @@
 ## ⚡ Getting Started
 
 > [!IMPORTANT]
-> To set up your Minecraft Bedrock Server, begin by downloading [Termux](https://f-droid.org/repo/com.termux_1000.apk). Once installed, launch Termux and allow it to complete the initial setup process. When ready, enter the following command and wait for it to complete. After that, enter this command below to set up your environment.
+> To set up your Minecraft Bedrock Server, fist download [Termux](https://f-droid.org/repo/com.termux_1000.apk). Once installed, launch Termux and allow it to finish initial setup. Then run the following command to initialize the Bedrux environment:
+> 
 > ```bash
 > bash <(curl -s https://raw.githubusercontent.com/euphoriys/bedrux/main/setup.sh)
 > ```
 
 ### Starting your server
-You can start the server with **`./start.sh`** or start it with **`./autostart.sh`** in the downloaded instance directory.
+After setup is complete:
+1. Enter the Ubuntu environment with `pd sh ubuntu`
+2. Run `./minecraft_version.sh` to create a new server instance
+3. Your server instance will be created in the `instances` directory
+4. Navigate to your instance directory and run either:
+   - `./start.sh` to start the server normally
+   - `./autostart.sh` to start with auto-restart functionality
 
 ---
 
