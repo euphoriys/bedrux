@@ -150,6 +150,7 @@ setup_server() {
     mkdir -p "$path"
     cd "$path" || exit
     unzip -q "$zip_path" && rm "$zip_path"
+    echo "$version" > "$path/version.txt"
     create_start_script
     create_autostart_script
     echo "Unzipping completed."
@@ -181,6 +182,27 @@ create_backup() {
     echo "Backup successfully created: $backup_file"
 }
 
+# Function to view details of an existing instance
+view_instance_details() {
+    local instance_dir="$INSTANCES_DIR/$1"
+    if [ ! -d "$instance_dir" ]; then
+        echo "Error: Instance $1 does not exist."
+        exit 1
+    fi
+
+    echo "Details for instance: $1"
+    echo "-------------------------"
+    echo "Path: $instance_dir"
+    echo "Size: $(du -sh "$instance_dir" | cut -f1)"
+    echo "Server version: $(cat "$instance_dir/version.txt" 2>/dev/null || echo 'Unknown')"
+
+    # Check for worlds or treat the instance as the world
+    if [ -d "$instance_dir/worlds" ] && [ "$(ls -A "$instance_dir/worlds" 2>/dev/null)" ]; then
+        echo "Worlds: $(ls "$instance_dir/worlds")"
+    fi
+    echo "-------------------------"
+}
+
 # Main menu for user interaction
 echo "Choose an option:"
 echo "1. Create a new instance"
@@ -188,10 +210,11 @@ echo "2. Update the server version in an existing instance"
 echo "3. Delete an existing instance and create a new one with the latest or specified server version"
 echo "4. Create a backup of an existing instance"
 echo "5. Restore a backup"
-read -p "Enter your choice [1-5]: " option
+echo "6. View details of an existing instance"
+read -p "Enter your choice [1-6]: " option
 
 # Handle user input
-if [[ "$option" -ne 1 && "$option" -ne 2 && "$option" -ne 3 && "$option" -ne 4 && "$option" -ne 5 ]]; then
+if [[ "$option" -ne 1 && "$option" -ne 2 && "$option" -ne 3 && "$option" -ne 4 && "$option" -ne 5 && "$option" -ne 6 ]]; then
     echo "Invalid option."
     exit 1
 fi
@@ -290,6 +313,17 @@ elif [ "$option" -eq 5 ]; then
     fi
     exit 0
 
+elif [ "$option" -eq 6 ]; then
+    if ! list_instances; then
+        exit 1
+    fi
+    read -p "Enter the name of the instance to view details: " instance_dir
+    if [ ! -d "$INSTANCES_DIR/$instance_dir" ]; then
+        echo "Error: Instance $instance_dir does not exist."
+        exit 1
+    fi
+    view_instance_details "$instance_dir"
+    exit 0
 else
     if ! list_instances; then
         exit 1
