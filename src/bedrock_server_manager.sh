@@ -203,6 +203,24 @@ view_instance_details() {
     echo "-------------------------"
 }
 
+# Function to delete an existing instance
+delete_instance() {
+    local instance_dir="$INSTANCES_DIR/$1"
+    if [ ! -d "$instance_dir" ]; then
+        echo "Error: Instance $1 does not exist."
+        exit 1
+    fi
+
+    read -p "Are you sure you want to delete the instance '$1'? This action cannot be undone. [y/N]: " confirm
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+        echo "Operation canceled."
+        exit 0
+    fi
+
+    rm -rf "$instance_dir" || { echo "Error: Failed to delete the instance."; exit 1; }
+    echo "Instance '$1' deleted successfully."
+}
+
 # Main menu for user interaction
 echo "Choose an option:"
 echo "1. Create a new instance"
@@ -211,10 +229,11 @@ echo "3. Delete an existing instance and create a new one with the latest or spe
 echo "4. Create a backup of an existing instance"
 echo "5. Restore a backup"
 echo "6. View details of an existing instance"
-read -p "Enter your choice [1-6]: " option
+echo "7. Delete an existing instance"
+read -p "Enter your choice [1-7]: " option
 
 # Handle user input
-if [[ "$option" -ne 1 && "$option" -ne 2 && "$option" -ne 3 && "$option" -ne 4 && "$option" -ne 5 && "$option" -ne 6 ]]; then
+if [[ "$option" -ne 1 && "$option" -ne 2 && "$option" -ne 3 && "$option" -ne 4 && "$option" -ne 5 && "$option" -ne 6 && "$option" -ne 7 ]]; then
     echo "Invalid option."
     exit 1
 fi
@@ -323,6 +342,18 @@ elif [ "$option" -eq 6 ]; then
         exit 1
     fi
     view_instance_details "$instance_dir"
+    exit 0
+
+    elif [ "$option" -eq 7 ]; then
+    if ! list_instances; then
+        exit 1
+    fi
+    read -p "Enter the name of the instance to delete: " instance_dir
+    if [ ! -d "$INSTANCES_DIR/$instance_dir" ]; then
+        echo "Error: Instance $instance_dir does not exist."
+        exit 1
+    fi
+    delete_instance "$instance_dir"
     exit 0
 else
     if ! list_instances; then
