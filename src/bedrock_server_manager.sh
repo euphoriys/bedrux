@@ -184,10 +184,10 @@ create_backup() {
 # Main menu for user interaction
 echo "Choose an option:"
 echo "1. Create a new instance"
-echo "2. Replace the server version in an existing instance"
-echo "3. Overwrite an existing instance"
+echo "2. Update the server version in an existing instance"
+echo "3. Delete an existing instance and create a new one with the latest or specified server version"
 echo "4. Create a backup of an existing instance"
-echo "5. Load a backup"
+echo "5. Restore a backup"
 read -p "Enter your choice [1-5]: " option
 
 # Handle user input
