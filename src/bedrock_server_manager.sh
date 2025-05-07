@@ -203,23 +203,44 @@ view_instance_details() {
     echo "-------------------------"
 }
 
+# Function to delete an existing instance
+delete_instance() {
+    local instance_dir="$INSTANCES_DIR/$1"
+    if [ ! -d "$instance_dir" ]; then
+        echo "Error: Instance $1 does not exist."
+        exit 1
+    fi
+
+    read -p "Are you sure you want to delete the instance '$1'? This action cannot be undone. [y/N]: " confirm
+    if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+        echo "Operation canceled."
+        exit 0
+    fi
+
+    rm -rf "$instance_dir" || { echo "Error: Failed to delete the instance."; exit 1; }
+    echo "Instance '$1' deleted successfully."
+}
+
 # Main menu for user interaction
 echo "Choose an option:"
 echo "1. Create a new instance"
 echo "2. Update the server version in an existing instance"
 echo "3. Delete an existing instance and create a new one with the latest or specified server version"
-echo "4. Create a backup of an existing instance"
-echo "5. Restore a backup"
-echo "6. View details of an existing instance"
-read -p "Enter your choice [1-6]: " option
+echo "4. Delete an existing instance"
+echo "5. View details of an existing instance"
+echo "6. Create a backup of an existing instance"
+echo "7. Restore a backup"
+echo "8. Delete a backup"
+read -p "Enter your choice [1-8]: " option
 
 # Handle user input
-if [[ "$option" -ne 1 && "$option" -ne 2 && "$option" -ne 3 && "$option" -ne 4 && "$option" -ne 5 && "$option" -ne 6 ]]; then
+if [[ "$option" -ne 1 && "$option" -ne 2 && "$option" -ne 3 && "$option" -ne 4 && "$option" -ne 5 && "$option" -ne 6 && "$option" -ne 7 && "$option" -ne 8 ]]; then
     echo "Invalid option."
     exit 1
 fi
 
 if [ "$option" -eq 1 ]; then
+    # Create a new instance
     read -p "Enter a name for the new instance (leave empty for default naming): " instance_name
     if [ -z "$instance_name" ]; then
         instance_name="bedrockserver"
@@ -234,7 +255,62 @@ if [ "$option" -eq 1 ]; then
     download_and_validate
     setup_server "$instance_name"
 
+elif [ "$option" -eq 2 ]; then
+    # Update the server version in an existing instance
+    if ! list_instances; then
+        exit 1
+    fi
+    read -p "Enter the instance name: " instance_dir
+    if [ ! -d "$INSTANCES_DIR/$instance_dir" ] || [ ! -f "$INSTANCES_DIR/$instance_dir/bedrock_server" ]; then
+        echo "Instance $instance_dir does not exist."
+        exit 1
+    fi
+    read -p "Do you want to use the latest release, preview, or enter a version manually? [release] " choice
+    determine_url "$choice"
+    download_and_validate
+    replace_version "$instance_dir"
+
+elif [ "$option" -eq 3 ]; then
+    # Delete an existing instance and create a new one
+    if ! list_instances; then
+        exit 1
+    fi
+    read -p "Enter the instance name: " instance_dir
+    if [ ! -d "$INSTANCES_DIR/$instance_dir" ]; then
+        echo "Instance $instance_dir does not exist."
+        exit 1
+    fi
+    read -p "Do you want to use the latest release, preview, or enter a version manually? [release] " choice
+    determine_url "$choice"
+    download_and_validate
+    overwrite_instance "$instance_dir"
+
 elif [ "$option" -eq 4 ]; then
+    # Delete an existing instance
+    if ! list_instances; then
+        exit 1
+    fi
+    read -p "Enter the name of the instance to delete: " instance_dir
+    if [ ! -d "$INSTANCES_DIR/$instance_dir" ]; then
+        echo "Error: Instance $instance_dir does not exist."
+        exit 1
+    fi
+    delete_instance "$instance_dir"
+
+elif [ "$option" -eq 5 ]; then
+    # View details of an existing instance
+    if ! list_instances; then
+        exit 1
+    fi
+    read -p "Enter the name of the instance to view details: " instance_dir
+    if [ ! -d "$INSTANCES_DIR/$instance_dir" ]; then
+        echo "Error: Instance $instance_dir does not exist."
+        exit 1
+    fi
+    view_instance_details "$instance_dir"
+
+elif [ "$option" -eq 6 ]; then
+    # Create a backup of an existing instance
     if ! list_instances; then
         exit 1
     fi
@@ -244,12 +320,12 @@ elif [ "$option" -eq 4 ]; then
         exit 1
     fi
     create_backup "$instance_dir"
-    exit 0
 
-elif [ "$option" -eq 5 ]; then
+elif [ "$option" -eq 7 ]; then
+    # Restore a backup
     if [ ! -d "backups" ]; then
         echo "Error: The 'backups' folder does not exist."
-        echo "Please create a backup first using Option 4."
+        echo "Please create a backup first using Option 6."
         exit 1
     fi
 
@@ -260,7 +336,7 @@ elif [ "$option" -eq 5 ]; then
         echo "Automatically selected backup: $backup_name"
     elif [ "$backups_count" -eq 0 ]; then
         echo "Error: No backup files found in the 'backups' folder."
-        echo "Please create a backup first using Option 4."
+        echo "Please create a backup first using Option 6."
         exit 1
     else
         echo "Available backups:"
@@ -311,37 +387,42 @@ elif [ "$option" -eq 5 ]; then
         echo "Error: Backup restoration failed. Target directory is empty."
         exit 1
     fi
-    exit 0
 
-elif [ "$option" -eq 6 ]; then
-    if ! list_instances; then
+    elif [ "$option" -eq 8 ]; then
+    # Delete backups
+    if [ ! -d "$BACKUP_DIR" ]; then
+        echo "Error: The 'backups' folder does not exist."
         exit 1
     fi
-    read -p "Enter the name of the instance to view details: " instance_dir
-    if [ ! -d "$INSTANCES_DIR/$instance_dir" ]; then
-        echo "Error: Instance $instance_dir does not exist."
+
+    backups_count=$(ls "$BACKUP_DIR"/*.tar.gz 2>/dev/null | wc -l)
+    if [ "$backups_count" -eq 0 ]; then
+        echo "No backups found in the 'backups' folder."
         exit 1
     fi
-    view_instance_details "$instance_dir"
-    exit 0
-else
-    if ! list_instances; then
-        exit 1
-    fi
-    read -p "Enter the instance name: " instance_dir
-    if [ ! -d "$INSTANCES_DIR/$instance_dir" ] || [ ! -f "$INSTANCES_DIR/$instance_dir/bedrock_server" ]; then
-        echo "Instance $instance_dir does not exist."
-        exit 1
-    fi
-    read -p "Do you want to use the latest release, preview, or enter a version manually? [release] " choice
-    determine_url "$choice"
-    download_and_validate
-    if [ "$option" -eq 2 ]; then
-        replace_version "$instance_dir"
-    elif [ "$option" -eq 3 ]; then
-        overwrite_instance "$instance_dir"
+
+    echo "Available backups:"
+    ls "$BACKUP_DIR"/*.tar.gz
+    read -p "Enter the name of the backup file to delete (e.g., your_backup.tar.gz), or type 'all' to delete all backups: " backup_name
+
+    if [ "$backup_name" == "all" ]; then
+        read -p "Are you sure you want to delete all backups? This action cannot be undone. [y/N]: " confirm
+        if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+            echo "Operation canceled."
+            exit 0
+        fi
+        rm -f "$BACKUP_DIR"/*.tar.gz || { echo "Error: Failed to delete backups."; exit 1; }
+        echo "All backups have been deleted."
     else
-        echo "Invalid option."
-        exit 1
+        backup_file="$BACKUP_DIR/$backup_name"
+        if [ ! -f "$backup_file" ]; then
+            echo "Error: Backup file '$backup_name' does not exist."
+            exit 1
+        fi
+        rm -f "$backup_file" || { echo "Error: Failed to delete the backup file."; exit 1; }
+        echo "Backup '$backup_name' has been deleted."
     fi
+else
+    echo "Invalid option."
+    exit 1
 fi
