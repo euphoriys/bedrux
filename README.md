@@ -31,7 +31,7 @@
 ### Starting your server
 After setup is complete:
 1. Enter the Ubuntu environment with `pd sh ubuntu`
-2. Run `./minecraft_version.sh` to create a new server instance
+2. Run `.bedrock_server_manager.sh` to create a new server instance
 3. Your server instance will be created in the `instances` directory
 4. Navigate to your instance directory and run either:
    - `./start.sh` to start the server normally

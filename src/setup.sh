@@ -33,4 +33,4 @@ pd sh ubuntu -- << 'OUTER_EOF' 2>/dev/null
 OUTER_EOF
 
 echo "Environment setup completed. Run 'pd sh ubuntu' to enter the Ubuntu environment."
-echo "You can install the Bedrock server by running './minecraft_version.sh'."
+echo "You can install the Bedrock server by running '.bedrock_server_manager.sh'."

@@ -3,17 +3,20 @@
 # Ensure the script always runs from its own directory
 cd "$(dirname "$0")" || exit 1
 
+# Base directories for instances and backups
 BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
 INSTANCES_DIR="$BASE_DIR/../instances"
 BACKUP_DIR="$BASE_DIR/../backups"
 
 # Function to fetch the latest release or preview version
+# This function scrapes the Minecraft wiki to find the latest version
 fetch_version() {
     local pattern=$1
     curl -s https://minecraft.wiki/w/Bedrock_Dedicated_Server | grep -oP "(?<=$pattern)[^\"]+" || { echo "Error: Unable to fetch version."; exit 1; }
 }
 
 # Function to determine the download URL based on the user's choice
+# Supports release, preview, or manual version input
 determine_url() {
     local choice=$1
     case "$choice" in
@@ -38,6 +41,7 @@ determine_url() {
 }
 
 # Function to download and validate the Bedrock server
+# Ensures the downloaded file is a valid zip archive
 download_and_validate() {
     local temp_zip="bedrockserver_tmp.zip"
     echo "Downloading version: $version"
@@ -52,7 +56,26 @@ download_and_validate() {
     echo "Download and validation successful."
 }
 
-# Function to create start script
+# Function to replace the bedrock_server executable in an existing instance
+# Updates the server executable while preserving configuration and world data
+replace_version() {
+    local instance_dir="$INSTANCES_DIR/$1"
+    if [ -d "$instance_dir" ]; then
+        echo "Updating instance: ${1}..."
+        unzip -o -j "bedrockserver_tmp.zip" "bedrock_server" -d "$instance_dir" > /dev/null || {
+            echo "Error: Failed to update the instance."
+            exit 1
+        }
+        rm "bedrockserver_tmp.zip"
+        echo "Instance ${1} updated successfully."
+    else
+        echo "Error: Instance ${1} does not exist."
+        exit 1
+    fi
+}
+
+# Function to create a start script for the server
+# Uses Box64 if available, otherwise runs the server directly
 create_start_script() {
     if command -v box64 > /dev/null 2>&1; then
         echo "#!/bin/bash
@@ -65,7 +88,8 @@ box64 bedrock_server | grep -v 'Box64 with Dynarec'" > start.sh
     chmod +x start.sh
 }
 
-# Function to create autostart script
+# Function to create an autostart script for the server
+# Restarts the server automatically if it crashes
 create_autostart_script() {
     if command -v box64 > /dev/null 2>&1; then
         echo '#!/bin/bash
@@ -100,7 +124,8 @@ done' > autostart.sh
     chmod +x autostart.sh
 }
 
-# Function to set up the server
+# Function to set up a new server instance
+# Unzips the downloaded server files and creates management scripts
 setup_server() {
     local instance_name="$1"
     local path="$INSTANCES_DIR/$instance_name"
@@ -116,7 +141,7 @@ setup_server() {
     echo "Setup completed. To start the server, navigate to '$path' and run './start.sh'."
 }
 
-# Function to list existing instances
+# Function to list all existing server instances
 list_instances() {
     local instances=($(find "$INSTANCES_DIR" -type f -name "bedrock_server" -exec dirname {} \; | sort -u))
     if [ ${#instances[@]} -eq 0 ]; then
@@ -130,45 +155,18 @@ list_instances() {
     return 0
 }
 
-# Function for creating a backup of an instance
+# Function to create a backup of a server instance
 create_backup() {
     local instance_dir="$1"
     mkdir -p "$BACKUP_DIR"
     local timestamp=$(date +"%Y%m%d_%H%M%S")
     local backup_file="$BACKUP_DIR/${instance_dir}_backup_$timestamp.tar.gz"
-    echo "Create backup for instance: $instance_dir..."
+    echo "Creating backup for instance: $instance_dir..."
     tar -czf "$backup_file" -C "$INSTANCES_DIR" "$instance_dir" || { echo "Error when creating the backup."; exit 1; }
     echo "Backup successfully created: $backup_file"
 }
 
-# Function to replace the bedrock_server executable in an existing instance
-replace_version() {
-    local instance_dir="$1"
-    local path="$INSTANCES_DIR/$instance_dir"
-    if [ -d "$path" ]; then
-        unzip -o -j "../../../bedrockserver_tmp.zip" "bedrock_server" -d "$path" > /dev/null
-        rm "../../../bedrockserver_tmp.zip"
-        echo "Instance $instance_dir updated successfully."
-    else
-        echo "Instance $instance_dir does not exist."
-        exit 1
-    fi
-}
-
-# Function to overwrite an existing instance
-overwrite_instance() {
-    local instance_dir="$1"
-    local path="$INSTANCES_DIR/$instance_dir"
-    if [ -d "$path" ]; then
-        rm -rf "$path"
-        setup_server "$instance_dir"
-        echo "Instance $instance_dir overwritten successfully."
-    else
-        echo "Instance $instance_dir does not exist."
-        exit 1
-    fi
-}
-
+# Main menu for user interaction
 echo "Choose an option:"
 echo "1. Create a new instance"
 echo "2. Replace the server version in an existing instance"
@@ -177,6 +175,7 @@ echo "4. Create a backup of an existing instance"
 echo "5. Load a backup"
 read -p "Enter your choice [1-5]: " option
 
+# Handle user input
 if [[ "$option" -ne 1 && "$option" -ne 2 && "$option" -ne 3 && "$option" -ne 4 && "$option" -ne 5 ]]; then
     echo "Invalid option."
     exit 1
@@ -281,7 +280,7 @@ else
         exit 1
     fi
     read -p "Enter the instance name: " instance_dir
-    if [ ! -d "$instance_dir" ] || [ ! -f "$instance_dir/bedrock_server" ]; then
+    if [ ! -d "$INSTANCES_DIR/$instance_dir" ] || [ ! -f "$INSTANCES_DIR/$instance_dir/bedrock_server" ]; then
         echo "Instance $instance_dir does not exist."
         exit 1
     fi
