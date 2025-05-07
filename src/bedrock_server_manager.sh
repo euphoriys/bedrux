@@ -230,10 +230,11 @@ echo "4. Delete an existing instance"
 echo "5. View details of an existing instance"
 echo "6. Create a backup of an existing instance"
 echo "7. Restore a backup"
-read -p "Enter your choice [1-7]: " option
+echo "8. Delete a backup"
+read -p "Enter your choice [1-8]: " option
 
 # Handle user input
-if [[ "$option" -ne 1 && "$option" -ne 2 && "$option" -ne 3 && "$option" -ne 4 && "$option" -ne 5 && "$option" -ne 6 && "$option" -ne 7 ]]; then
+if [[ "$option" -ne 1 && "$option" -ne 2 && "$option" -ne 3 && "$option" -ne 4 && "$option" -ne 5 && "$option" -ne 6 && "$option" -ne 7 && "$option" -ne 8 ]]; then
     echo "Invalid option."
     exit 1
 fi
@@ -385,6 +386,41 @@ elif [ "$option" -eq 7 ]; then
     else
         echo "Error: Backup restoration failed. Target directory is empty."
         exit 1
+    fi
+
+    elif [ "$option" -eq 8 ]; then
+    # Delete backups
+    if [ ! -d "$BACKUP_DIR" ]; then
+        echo "Error: The 'backups' folder does not exist."
+        exit 1
+    fi
+
+    backups_count=$(ls "$BACKUP_DIR"/*.tar.gz 2>/dev/null | wc -l)
+    if [ "$backups_count" -eq 0 ]; then
+        echo "No backups found in the 'backups' folder."
+        exit 1
+    fi
+
+    echo "Available backups:"
+    ls "$BACKUP_DIR"/*.tar.gz
+    read -p "Enter the name of the backup file to delete (e.g., your_backup.tar.gz), or type 'all' to delete all backups: " backup_name
+
+    if [ "$backup_name" == "all" ]; then
+        read -p "Are you sure you want to delete all backups? This action cannot be undone. [y/N]: " confirm
+        if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+            echo "Operation canceled."
+            exit 0
+        fi
+        rm -f "$BACKUP_DIR"/*.tar.gz || { echo "Error: Failed to delete backups."; exit 1; }
+        echo "All backups have been deleted."
+    else
+        backup_file="$BACKUP_DIR/$backup_name"
+        if [ ! -f "$backup_file" ]; then
+            echo "Error: Backup file '$backup_name' does not exist."
+            exit 1
+        fi
+        rm -f "$backup_file" || { echo "Error: Failed to delete the backup file."; exit 1; }
+        echo "Backup '$backup_name' has been deleted."
     fi
 else
     echo "Invalid option."
