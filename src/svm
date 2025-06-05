@@ -1,0 +1,304 @@
+#!/bin/bash
+
+# Path Variable
+bedrux="/home/$(whoami)/.bedrux"
+
+# UI Theme Variables (no height or layout here)
+FZF_COLOR_BASE="fg:#dcd7ba,bg:#1f1f28,hl:#c0a36e,fg+:#ffffff,bg+:#2a2a37,hl+:#e6c384"
+FZF_COLOR_UI="prompt:#7fb4ca,pointer:#e46876,marker:#98bb6c,info:#957fb8,border:#7e9cd8"
+FZF_BORDER_LABEL="--border-label=' Bedrux Server Manager ' --border-label-pos=top"
+FZF_SYMBOLS="--prompt='❯ ' --pointer='➤' --marker='✓'"   
+FZF_COLOR="$FZF_COLOR_BASE,$FZF_COLOR_UI"
+export FZF_DEFAULT_OPTS="--color=$FZF_COLOR $FZF_BORDER_LABEL $FZF_SYMBOLS"
+
+# ASCII-Art Variable
+ascii_art="
+██████╗ ███████╗██████╗ ██████╗ ██╗   ██╗██╗  ██╗
+██╔══██╗██╔════╝██╔══██╗██╔══██╗██║   ██║╚██╗██╔╝
+██████╔╝█████╗  ██║  ██║██████╔╝██║   ██║ ╚███╔╝
+██╔══██╗██╔══╝  ██║  ██║██╔══██╗██║   ██║ ██╔██╗
+██████╔╝███████╗██████╔╝██║  ██║╚██████╔╝██╔╝ ██╗
+╚═════╝ ╚══════╝╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝
+"
+
+# Utility Functions
+
+trim() {
+    printf '%s' "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+}
+
+show_menu() {
+    local count=$#
+    local height=$((count + 4))
+    printf "%s\n" "$@" | fzf --height="$height" --layout=reverse-list --border
+}
+
+show_menu_with_logo() {
+    local lines_ascii=$(echo "$ascii_art" | wc -l)
+    local count=$#
+    local height=$((lines_ascii + count + 4))
+    { printf "%s\n" "$ascii_art"; printf "%s\n" "$@"; } | \
+        fzf --height="$height" --layout=reverse-list --border --header-lines=$lines_ascii
+}
+
+input_menu() {
+    local msg error status ctrl_c
+    local validate_version="${3:-false}"
+    local show_error_now="${4:-false}"
+    local regex='^1\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$'
+
+    if [[ show_error_now == true ]]; then
+        error="$2"
+    fi
+
+    while true; do
+        msg=$1
+        input=$(fzf --height=5 --layout=reverse-list \
+        --prompt="$msg: " --border --no-info \
+        --print-query --no-info --header="$error" < /dev/null)
+
+        status=$?
+        ctrl_c=$(echo "$input" | grep -q '^ctrl-c$'; echo $?)
+
+        if [[ $status -eq 130 || $ctrl_c -eq 0 ]]; then
+            echo "Operation cancelled."
+            exit
+        fi
+
+        input=$(trim "$input")
+        
+        if [[ -z "$input" ]]; then
+            error=$2
+            continue
+        fi
+
+        if [[ "$validate_version" == "true" && ! "$input" =~ $regex ]]; then
+            error="Please enter a valid version."
+            continue
+        fi
+
+        break
+    done
+    echo "$input"
+}
+
+fetch_versions() {
+    local wiki_url="https://minecraft.wiki/w/Bedrock_Dedicated_Server"
+    local filter="<b>(Release|Preview):</b>.*?>\K[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+"
+
+    curl -s $wiki_url | grep -oP $filter || echo ""
+}
+
+url_exists() {
+    local url="$1"
+    local status
+    status=$(curl -s -o /dev/null -w "%{http_code}" -A "Mozilla/5.0" -I "$url")
+    [[ "$status" -eq 200 ]]
+}
+
+make_url() {
+    local type="$1" version="$2"
+
+    # type is "" for release, "-preview" for preview
+    local base_url="https://www.minecraft.net/bedrockdedicatedserver/bin-linux${type}/bedrock-server-${version}.zip"
+    
+    echo $base_url 
+}
+
+select_version() {
+    local versions
+    readarray -t versions < <(fetch_versions)
+
+    options=(
+        "1 - Release: ${versions[0]}"
+        "2 - Preview: ${versions[1]}"
+        "3 - Enter version"
+    )
+
+    choice=$(show_menu "${options[@]}")
+
+        case "$choice" in
+        "${options[0]}")
+            release=$(make_url "" "${versions[0]}")
+            echo "${release}"
+            ;;
+
+        "${options[1]}")
+            preview=$(make_url "-preview" "${versions[1]}")
+            echo "${preview}"
+            ;;
+
+        "${options[2]}")
+            version=$(input_menu "Enter version" "Version cannot be empty.", true)
+
+            release=$(make_url "" "$version")
+            preview=$(make_url "-preview" "$version")
+
+            if url_exists "${release}"; then
+                echo "${release}"
+            fi
+
+            if url_exists "${preview}"; then
+                echo "${preview}"
+            fi
+            ;;
+
+        *)
+            exit
+            ;;
+    esac
+}
+
+download_version() {
+    local name="$1" url="$2"
+
+    # Create base directory if it doesn't exist
+    if [[ ! -d "$bedrux" ]]; then
+        mkdir -p "$bedrux"/{instances,backups,downloads}
+    else
+        # Ensure subdirectories exist
+        for sub in instances backups downloads; do
+            [[ ! -d "$bedrux/$sub" ]] && mkdir -p "$bedrux/$sub"
+        done
+    fi
+
+    # Extract the filename from URL
+    local filename="${url##*/}"
+    local download_path="$bedrux/downloads/$filename"
+    local instance_path="$bedrux/instances/$name"
+
+    # Check if instance exists before downloading
+    if [[ -d "$instance_path" ]]; then
+        confirm=$(input_menu "Instance directory already exists. Do you want to overwrite it? (y/n)" \
+        "Please try again." false true)
+        if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+            echo "Aborting download."
+            return 1
+        fi
+        rm -rf "$instance_path"
+    fi
+
+    echo "[+] Downloading..."
+
+    curl -s -A "Mozilla/5.0 (compatible; MyClient/1.0)" -L -o "$download_path" "$url" || { echo "Download failed!"; return 1; }
+
+    mkdir -p "$instance_path"
+    unzip -q "$download_path" -d "$instance_path" || { echo "Extraction failed!"; return 1; }
+
+    echo "[✓] Instance '$name' created successfully."
+}
+
+list_instances() {
+    # List instances in a menu, selecting does nothing, add back button
+    if [[ -d "$bedrux/instances" ]]; then
+        mapfile -t instance_list < <(ls -1 "$bedrux/instances")
+    else
+        instance_list=()
+    fi
+
+    instance_menu_options=("${instance_list[@]}" "Back")
+    selected_instance=$(show_menu "${instance_menu_options[@]}")
+
+    if [[ "$selected_instance" == "Back" ]]; then
+        main
+        return
+    fi
+}
+
+delete_instance() {
+    # Alle Instanzen auflisten
+    if [[ -d "$bedrux/instances" ]]; then
+        mapfile -t instance_list < <(ls -1 "$bedrux/instances")
+    else
+        echo "No instances found."
+        return
+    fi
+
+    # Menü mit Back-Button
+    instance_menu_options=("${instance_list[@]}" "Back")
+    selected_instance=$(show_menu "${instance_menu_options[@]}")
+
+    if [[ "$selected_instance" == "Back" || -z "$selected_instance" ]]; then
+        main
+        return
+    fi
+
+    instance_path="$bedrux/instances/$selected_instance"
+    if [[ -d "$instance_path" ]]; then
+        confirm=$(input_menu "Are you sure you want to delete '$selected_instance'? (y/n)" "Please try again." false true)
+        if [[ "$confirm" =~ ^[Yy]$ ]]; then
+            rm -rf "$instance_path"
+            echo "[✓] Instance '$selected_instance' deleted successfully."
+        else
+            echo "Deletion cancelled."
+        fi
+    else
+        echo "Instance '$selected_instance' does not exist."
+    fi
+}
+
+main() {
+    options=(
+        "1 - Create a new instance"
+        "2 - Manage instances"
+        "3 - View instance details"
+        "4 - Backup options"
+    )
+
+    choice=$(show_menu_with_logo "${options[@]}")
+
+    case "$choice" in
+        "${options[0]}")
+            name=$(input_menu "Enter the instance name" "Instance name cannot be empty." false false)
+
+            if [[ "$name" == "Operation cancelled." ]]; then
+                exit
+            fi
+
+            url=$(select_version)
+            download_version "$name" "$url"
+            ;;
+
+        "${options[1]}")
+            options_instances=(
+                "1 - List instances"
+                "2 - Delete an instance"
+                "3 - Back to main menu"
+            )
+
+            choice_instance=$(show_menu "${options_instances[@]}")
+
+            case "$choice_instance" in
+                "${options_instances[0]}")
+                    list_instances
+                    ;;
+
+                "${options_instances[1]}")
+                    delete_instance
+                    ;;
+
+                "${options_instances[2]}")
+                    main
+                    return
+                    ;;
+                *)
+                    echo "Invalid option."
+                    ;;
+            esac
+            ;;
+
+        "${options[2]}")
+            echo "Viewing instance details..."
+            ;;
+
+        "${options[3]}")
+            echo "Backup options..."
+            ;;
+
+        *)
+            echo "Ungültige Auswahl."
+            ;;
+    esac
+}
+
+main
