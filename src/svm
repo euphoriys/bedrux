@@ -156,21 +156,17 @@ download_version() {
     if [[ ! -d "$bedrux" ]]; then
         mkdir -p "$bedrux"/{instances,backups,downloads}
     else
-        # Ensure subdirectories exist
         for sub in instances backups downloads; do
             [[ ! -d "$bedrux/$sub" ]] && mkdir -p "$bedrux/$sub"
         done
     fi
 
-    # Extract the filename from URL
     local filename="${url##*/}"
     local download_path="$bedrux/downloads/$filename"
     local instance_path="$bedrux/instances/$name"
 
-    # Check if instance exists before downloading
     if [[ -d "$instance_path" ]]; then
-        confirm=$(input_menu "Instance directory already exists. Do you want to overwrite it? (y/n)" \
-        "Please try again." false true)
+        confirm=$(input_menu "Instance directory already exists. Do you want to overwrite it? (y/n)" "Please try again." false true)
         if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
             echo "Aborting download."
             return 1
@@ -183,7 +179,8 @@ download_version() {
     curl -s -A "Mozilla/5.0 (compatible; MyClient/1.0)" -L -o "$download_path" "$url" || { echo "Download failed!"; return 1; }
 
     mkdir -p "$instance_path"
-    unzip -q "$download_path" -d "$instance_path" || { echo "Extraction failed!"; return 1; }
+    unzip -q "$download_path" -d "$instance_path" || { echo "Extraction failed!"; rm -f "$download_path"; return 1; }
+    rm -f "$download_path"
 
     echo "[✓] Instance '$name' created successfully."
 }
@@ -203,6 +200,55 @@ list_instances() {
         main
         return
     fi
+}
+
+
+start_instance() {
+    # List instances
+    if [[ -d "$bedrux/instances" ]]; then
+        mapfile -t instance_list < <(ls -1 "$bedrux/instances")
+    else
+        echo "No instances found."
+        return
+    fi
+
+    instance_menu_options=("${instance_list[@]}" "Back")
+    selected_instance=$(show_menu "${instance_menu_options[@]}")
+
+    if [[ "$selected_instance" == "Back" || -z "$selected_instance" ]]; then
+        main
+        return
+    fi
+
+    local instance_path="$bedrux/instances/$selected_instance"
+
+    if [[ ! -d "$instance_path" ]]; then
+        echo "Instance '$selected_instance' does not exist."
+        return 1
+    fi
+
+    if [[ ! -f "$instance_path/bedrock_server" ]]; then
+        echo "bedrock_server file not found in instance '$selected_instance'."
+        return 1
+    fi
+
+    echo "[+] Starting instance '$selected_instance'..."
+    cd "$instance_path" || return 1
+
+    case "$(uname -m)" in
+        x86_64)
+            sleep 1
+            ./bedrock_server
+            ;;
+        aarch64)
+            sleep 1
+            box64 bedrock_server
+            ;;
+        *)
+            echo "Sorry, system architecture is not supported."
+            return 1
+            ;;
+    esac
 }
 
 delete_instance() {
@@ -237,18 +283,74 @@ delete_instance() {
     fi
 }
 
+update_instance() {
+    # Instanzen auflisten
+    if [[ -d "$bedrux/instances" ]]; then
+        mapfile -t instance_list < <(ls -1 "$bedrux/instances")
+    else
+        echo "No instances found."
+        return
+    fi
+
+    instance_menu_options=("${instance_list[@]}" "Back")
+    selected_instance=$(show_menu "${instance_menu_options[@]}")
+
+    if [[ "$selected_instance" == "Back" || -z "$selected_instance" ]]; then
+        return
+    fi
+
+    # Version auswählen
+    url=$(select_version)
+    if [[ -z "$url" ]]; then
+        echo "No version selected."
+        return
+    fi
+
+    # Download nur der bedrock_server Datei
+    tmp_dir=$(mktemp -d)
+    echo "[+] Downloading and extracting new bedrock_server..."
+
+    curl -s -A "Mozilla/5.0 (compatible; MyClient/1.0)" -L -o "$tmp_dir/server.zip" "$url" || { echo "Download failed!"; rm -rf "$tmp_dir"; return 1; }
+    unzip -q "$tmp_dir/server.zip" bedrock_server -d "$tmp_dir" || { echo "Extraction failed!"; rm -rf "$tmp_dir"; return 1; }
+    rm -f "$tmp_dir/server.zip"
+
+    instance_path="$bedrux/instances/$selected_instance"
+    if [[ ! -d "$instance_path" ]]; then
+        echo "Instance '$selected_instance' does not exist."
+        rm -rf "$tmp_dir"
+        return
+    fi
+
+    # Backup alte Datei
+    if [[ -f "$instance_path/bedrock_server" ]]; then
+        mv "$instance_path/bedrock_server" "$instance_path/bedrock_server.bak.$(date +%s)"
+    fi
+
+    # Neue Datei kopieren und Rechte setzen
+    mv "$tmp_dir/bedrock_server" "$instance_path/bedrock_server"
+    chmod +x "$instance_path/bedrock_server"
+
+    rm -rf "$tmp_dir"
+    echo "[✓] Instance '$selected_instance' updated successfully."
+}
+
 main() {
     options=(
-        "1 - Create a new instance"
-        "2 - Manage instances"
-        "3 - View instance details"
-        "4 - Backup options"
+        "1 - Start an Instance"
+        "2 - Create a new instance"
+        "3 - Manage instances"
+        "4 - View instance details"
+        "5 - Backup options"
     )
 
     choice=$(show_menu_with_logo "${options[@]}")
 
     case "$choice" in
         "${options[0]}")
+            start_instance 
+            ;;
+
+        "${options[1]}")
             name=$(input_menu "Enter the instance name" "Instance name cannot be empty." false false)
 
             if [[ "$name" == "Operation cancelled." ]]; then
@@ -259,11 +361,12 @@ main() {
             download_version "$name" "$url"
             ;;
 
-        "${options[1]}")
+        "${options[2]}")
             options_instances=(
                 "1 - List instances"
                 "2 - Delete an instance"
-                "3 - Back to main menu"
+                "3 - Update instance"
+                "4 - Back to main menu"
             )
 
             choice_instance=$(show_menu "${options_instances[@]}")
@@ -278,6 +381,10 @@ main() {
                     ;;
 
                 "${options_instances[2]}")
+                    update_instance
+                    ;;
+
+                "${options_instances[3]}")
                     main
                     return
                     ;;
@@ -287,16 +394,16 @@ main() {
             esac
             ;;
 
-        "${options[2]}")
+        "${options[3]}")
             echo "Viewing instance details..."
             ;;
 
-        "${options[3]}")
+        "${options[4]}")
             echo "Backup options..."
             ;;
 
         *)
-            echo "Ungültige Auswahl."
+            echo "Invalid option. Exiting."
             ;;
     esac
 }
