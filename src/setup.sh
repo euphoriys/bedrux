@@ -20,7 +20,7 @@ setup_ubuntu_env() {
         set -e
         apt update > /dev/null
         apt upgrade -y > /dev/null
-        apt install -y curl nano gpg > /dev/null 
+        apt install -y fzf curl nano gpg > /dev/null 
 
         arch=$(uname -m)
         if [[ "$arch" == "aarch64" ]]; then
