@@ -36,16 +36,10 @@ else
     exit 1
 fi
 
-echo "Downloading Minecraft version helper script..."
+echo "Downloading Bedrux Server Manager..."
 curl -s -O https://raw.githubusercontent.com/euphoriys/bedrux/refs/heads/main/src/svm
-chmod +x minecraft_version.sh
-
-echo "Downloading Bedrux Server Manager (svm)..."
-curl -s -O https://raw.githubusercontent.com/euphoriys/bedrux/main/src/svm
 chmod +x svm
 mv svm /usr/bin/svm
-
-echo "svm installed to /usr/bin and made executable."
 EOF
 
     proot-distro login ubuntu -- bash /tmp/ubuntu_setup_inner.sh
