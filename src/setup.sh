@@ -26,7 +26,7 @@ apt install -y curl nano gpg > /dev/null 2>&1
 arch=$(uname -m)
 if [[ "$arch" == "aarch64" ]]; then
     echo "Installing Box64 for ARM64 architecture..."
-    curl -s -O https://raw.githubusercontent.com/euphoriys/bedrux/main/src/box64.sh
+    curl -s -O https://raw.githubusercontent.com/euphoriys/bedrux/refs/heads/main/src/box64.sh
     bash box64.sh > /dev/null 2>&1
     rm -f box64.sh
 elif [[ "$arch" == "x86_64" || "$arch" == "amd64" ]]; then
@@ -37,7 +37,7 @@ else
 fi
 
 echo "Downloading Minecraft version helper script..."
-curl -s -O https://raw.githubusercontent.com/euphoriys/bedrux/main/src/minecraft_version.sh
+curl -s -O https://raw.githubusercontent.com/euphoriys/bedrux/refs/heads/main/src/svm
 chmod +x minecraft_version.sh
 
 echo "Downloading Bedrux Server Manager (svm)..."
