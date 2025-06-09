@@ -4,13 +4,13 @@ set -e
 
 update_termux_packages() {
     echo "Updating Termux packages and installing proot-distro..."
-    yes | pkg up > /dev/null 2>&1
-    pkg install proot-distro -y > /dev/null 2>&1
+    yes | pkg up > /dev/null
+    pkg install proot-distro -y > /dev/null
 }
 
 install_ubuntu() {
     echo "Installing Ubuntu distribution in proot-distro..."
-    proot-distro install ubuntu > /dev/null 2>&1
+    proot-distro install ubuntu > /dev/null
 }
 
 setup_ubuntu_env() {
@@ -18,9 +18,9 @@ setup_ubuntu_env() {
 
     proot-distro login ubuntu -- bash -c '
         set -e
-        apt update > /dev/null 2>&1
-        apt upgrade -y > /dev/null 2>&1
-        apt install -y curl nano gpg > /dev/null 2>&1
+        apt update > /dev/null
+        apt upgrade -y > /dev/null
+        apt install -y curl nano gpg > /dev/null 
 
         arch=$(uname -m)
         if [[ "$arch" == "aarch64" ]]; then
