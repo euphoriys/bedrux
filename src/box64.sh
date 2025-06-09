@@ -25,8 +25,8 @@ Signed-By: /usr/share/keyrings/box64-archive-keyring.gpg" | tee /etc/apt/sources
 
 # Function to install Box64
 install_box64() {
-    apt update
-    apt install box64-android -y
+    apt-get update
+    apt-get install box64-android -y
 }
 
 main () {
