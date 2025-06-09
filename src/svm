@@ -1,17 +1,16 @@
 #!/bin/bash
 
-# Path Variable
-bedrux="/home/$(whoami)/.bedrux"
+# --- Path & UI Variables ---
+bedrux="/home/$(whoami)/.bedrux" # location of Bedrux Server Manager (User)
+# bedrux="/opt/bedrux" # location of Bedrux Server Manager (System)
 
-# UI Theme Variables (no height or layout here)
 FZF_COLOR_BASE="fg:#dcd7ba,bg:#1f1f28,hl:#c0a36e,fg+:#ffffff,bg+:#2a2a37,hl+:#e6c384"
 FZF_COLOR_UI="prompt:#7fb4ca,pointer:#e46876,marker:#98bb6c,info:#957fb8,border:#7e9cd8"
 FZF_BORDER_LABEL="--border-label=' Bedrux Server Manager ' --border-label-pos=top"
-FZF_SYMBOLS="--prompt='❯ ' --pointer='➤' --marker='✓'"   
+FZF_SYMBOLS="--prompt='❯ ' --pointer='➤' --marker='✓'"
 FZF_COLOR="$FZF_COLOR_BASE,$FZF_COLOR_UI"
 export FZF_DEFAULT_OPTS="--color=$FZF_COLOR $FZF_BORDER_LABEL $FZF_SYMBOLS"
 
-# ASCII-Art Variable
 ascii_art="
 ██████╗ ███████╗██████╗ ██████╗ ██╗   ██╗██╗  ██╗
 ██╔══██╗██╔════╝██╔══██╗██╔══██╗██║   ██║╚██╗██╔╝
@@ -21,7 +20,7 @@ ascii_art="
 ╚═════╝ ╚══════╝╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝
 "
 
-# Utility Functions
+# --- Utility Functions ---
 
 trim() {
     printf '%s' "$1" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
@@ -47,7 +46,7 @@ input_menu() {
     local show_error_now="${4:-false}"
     local regex='^1\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$'
 
-    if [[ show_error_now == true ]]; then
+    if [[ $show_error_now == true ]]; then
         error="$2"
     fi
 
@@ -85,7 +84,6 @@ input_menu() {
 fetch_versions() {
     local wiki_url="https://minecraft.wiki/w/Bedrock_Dedicated_Server"
     local filter="<b>(Release|Preview):</b>.*?>\K[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+"
-
     curl -s $wiki_url | grep -oP $filter || echo ""
 }
 
@@ -98,10 +96,7 @@ url_exists() {
 
 make_url() {
     local type="$1" version="$2"
-
-    # type is "" for release, "-preview" for preview
     local base_url="https://www.minecraft.net/bedrockdedicatedserver/bin-linux${type}/bedrock-server-${version}.zip"
-    
     echo $base_url 
 }
 
@@ -117,42 +112,37 @@ select_version() {
 
     choice=$(show_menu "${options[@]}")
 
-        case "$choice" in
+    case "$choice" in
         "${options[0]}")
             release=$(make_url "" "${versions[0]}")
             echo "${release}"
             ;;
-
         "${options[1]}")
             preview=$(make_url "-preview" "${versions[1]}")
             echo "${preview}"
             ;;
-
         "${options[2]}")
-            version=$(input_menu "Enter version" "Version cannot be empty.", true)
-
+            version=$(input_menu "Enter version" "Version cannot be empty." true)
             release=$(make_url "" "$version")
             preview=$(make_url "-preview" "$version")
-
             if url_exists "${release}"; then
                 echo "${release}"
             fi
-
             if url_exists "${preview}"; then
                 echo "${preview}"
             fi
             ;;
-
         *)
             exit
             ;;
     esac
 }
 
+# --- Instance Operations ---
+
 download_version() {
     local name="$1" url="$2"
 
-    # Create base directory if it doesn't exist
     if [[ ! -d "$bedrux" ]]; then
         mkdir -p "$bedrux"/{instances,backups,downloads}
     else
@@ -186,14 +176,19 @@ download_version() {
 }
 
 list_instances() {
-    # List instances in a menu, selecting does nothing, add back button
     if [[ -d "$bedrux/instances" ]]; then
         mapfile -t instance_list < <(ls -1 "$bedrux/instances")
     else
         instance_list=()
     fi
 
-    instance_menu_options=("${instance_list[@]}" "Back")
+    instance_menu_options=()
+    for i in "${!instance_list[@]}"; do
+        num=$((i+1))
+        instance_menu_options+=("$num - ${instance_list[$i]}")
+    done
+    instance_menu_options+=("$(( ${#instance_list[@]} + 1 )) - Back")
+
     selected_instance=$(show_menu "${instance_menu_options[@]}")
 
     if [[ "$selected_instance" == "Back" ]]; then
@@ -202,9 +197,7 @@ list_instances() {
     fi
 }
 
-
 start_instance() {
-    # List instances
     if [[ -d "$bedrux/instances" ]]; then
         mapfile -t instance_list < <(ls -1 "$bedrux/instances")
     else
@@ -212,8 +205,15 @@ start_instance() {
         return
     fi
 
-    instance_menu_options=("${instance_list[@]}" "Back")
-    selected_instance=$(show_menu "${instance_menu_options[@]}")
+    instance_menu_options=()
+    for i in "${!instance_list[@]}"; do
+        num=$((i+1))
+        instance_menu_options+=("$num - ${instance_list[$i]}")
+    done
+    instance_menu_options+=("$(( ${#instance_list[@]} + 1 )) - Back")
+
+    selected=$(show_menu "${instance_menu_options[@]}")
+    selected_instance=$(echo "$selected" | sed 's/^[0-9]\+ - //')
 
     if [[ "$selected_instance" == "Back" || -z "$selected_instance" ]]; then
         main
@@ -252,7 +252,6 @@ start_instance() {
 }
 
 delete_instance() {
-    # Alle Instanzen auflisten
     if [[ -d "$bedrux/instances" ]]; then
         mapfile -t instance_list < <(ls -1 "$bedrux/instances")
     else
@@ -260,12 +259,17 @@ delete_instance() {
         return
     fi
 
-    # Menü mit Back-Button
-    instance_menu_options=("${instance_list[@]}" "Back")
-    selected_instance=$(show_menu "${instance_menu_options[@]}")
+    instance_menu_options=()
+    for i in "${!instance_list[@]}"; do
+        num=$((i+1))
+        instance_menu_options+=("$num - ${instance_list[$i]}")
+    done
+    instance_menu_options+=("$(( ${#instance_list[@]} + 1 )) - Back")
+
+    selected=$(show_menu "${instance_menu_options[@]}")
+    selected_instance=$(echo "$selected" | sed 's/^[0-9]\+ - //')
 
     if [[ "$selected_instance" == "Back" || -z "$selected_instance" ]]; then
-        main
         return
     fi
 
@@ -284,7 +288,6 @@ delete_instance() {
 }
 
 update_instance() {
-    # Instanzen auflisten
     if [[ -d "$bedrux/instances" ]]; then
         mapfile -t instance_list < <(ls -1 "$bedrux/instances")
     else
@@ -292,21 +295,26 @@ update_instance() {
         return
     fi
 
-    instance_menu_options=("${instance_list[@]}" "Back")
-    selected_instance=$(show_menu "${instance_menu_options[@]}")
+    instance_menu_options=()
+    for i in "${!instance_list[@]}"; do
+        num=$((i+1))
+        instance_menu_options+=("$num - ${instance_list[$i]}")
+    done
+    instance_menu_options+=("$(( ${#instance_list[@]} + 1 )) - Back")
+
+    selected=$(show_menu "${instance_menu_options[@]}")
+    selected_instance=$(echo "$selected" | sed 's/^[0-9]\+ - //')
 
     if [[ "$selected_instance" == "Back" || -z "$selected_instance" ]]; then
         return
     fi
 
-    # Version auswählen
     url=$(select_version)
     if [[ -z "$url" ]]; then
         echo "No version selected."
         return
     fi
 
-    # Download nur der bedrock_server Datei
     tmp_dir=$(mktemp -d)
     echo "[+] Downloading and extracting new bedrock_server..."
 
@@ -321,18 +329,301 @@ update_instance() {
         return
     fi
 
-    # Backup alte Datei
     if [[ -f "$instance_path/bedrock_server" ]]; then
         mv "$instance_path/bedrock_server" "$instance_path/bedrock_server.bak.$(date +%s)"
     fi
 
-    # Neue Datei kopieren und Rechte setzen
     mv "$tmp_dir/bedrock_server" "$instance_path/bedrock_server"
     chmod +x "$instance_path/bedrock_server"
 
     rm -rf "$tmp_dir"
     echo "[✓] Instance '$selected_instance' updated successfully."
 }
+
+get_bedrock_version() {
+    local instance_path="$1"
+    local version=""
+    local output=""
+
+    if [[ ! -f "$instance_path/bedrock_server" ]]; then
+        echo ""
+        return
+    fi
+
+    if [[ "$(uname -m)" == "aarch64" ]]; then
+        output=$(
+            (cd "$instance_path" && \
+                (box64 ./bedrock_server 2>&1 & echo $! >pidfile; sleep 2; kill $(cat pidfile) 2>/dev/null; rm pidfile) | head -n 30)
+        )
+    else
+        output=$(
+            (cd "$instance_path" && \
+                (./bedrock_server 2>&1 & echo $! >pidfile; sleep 2; kill $(cat pidfile) 2>/dev/null; rm pidfile) | head -n 30)
+        )
+    fi
+
+    version=$(echo "$output" | grep -oP 'Version:\s*\K[0-9]+\.[0-9]+\.[0-9]+(-beta[0-9]+)?')
+    echo "$version"
+}
+
+view_instance_details() {
+    if [[ -d "$bedrux/instances" ]]; then
+        mapfile -t instance_list < <(ls -1 "$bedrux/instances")
+    else
+        echo "No instances found."
+        return
+    fi
+
+    instance_menu_options=()
+    for i in "${!instance_list[@]}"; do
+        num=$((i+1))
+        instance_menu_options+=("$num - ${instance_list[$i]}")
+    done
+    instance_menu_options+=("$(( ${#instance_list[@]} + 1 )) - Back")
+
+    selected=$(show_menu "${instance_menu_options[@]}")
+    selected_instance=$(echo "$selected" | sed 's/^[0-9]\+ - //')
+
+    if [[ "$selected_instance" == "Back" || -z "$selected_instance" ]]; then
+        main
+        return
+    fi
+
+    instance_path="$bedrux/instances/$selected_instance"
+
+    if [[ ! -d "$instance_path" ]]; then
+        echo "Instance '$selected_instance' does not exist."
+        return 1
+    fi
+
+    created=$(stat -c %y "$instance_path" | cut -d'.' -f1)
+    size=$(du -sh "$instance_path" | awk '{print $1}')
+    version=$(get_bedrock_version "$instance_path")
+
+    details=(
+        "- Name: $selected_instance"
+        "- Path: $instance_path"
+        "- Created: $created"
+        "- Size: $size"
+        "- Version: ${version:-unknown}"
+    )
+    show_menu "${details[@]}" > /dev/null
+}
+
+# --- Backup Operations ---
+
+backup_instance() {
+    if [[ -d "$bedrux/instances" ]]; then
+        mapfile -t instance_list < <(ls -1 "$bedrux/instances")
+    else
+        echo "No instances found."
+        return
+    fi
+
+    instance_menu_options=()
+    for i in "${!instance_list[@]}"; do
+        num=$((i+1))
+        instance_menu_options+=("$num - ${instance_list[$i]}")
+    done
+    instance_menu_options+=("$(( ${#instance_list[@]} + 1 )) - Back")
+
+    selected=$(show_menu "${instance_menu_options[@]}")
+    selected_instance=$(echo "$selected" | sed 's/^[0-9]\+ - //')
+
+    if [[ "$selected_instance" == "Back" || -z "$selected_instance" ]]; then
+        main
+        return
+    fi
+
+    timestamp=$(date +"%Y%m%d_%H%M%S")
+    backup_file="$bedrux/backups/${selected_instance}_$timestamp.zip"
+    instance_path="$bedrux/instances/$selected_instance"
+
+    echo "[+] Creating backup..."
+    cd "$instance_path" || return 1
+    zip -qr "$backup_file" . || { echo "Backup failed!"; return 1; }
+    echo "[✓] Backup saved as $backup_file"
+}
+
+restore_instance() {
+    if [[ -d "$bedrux/backups" ]]; then
+        mapfile -t backup_list < <(ls -1 "$bedrux/backups")
+    else
+        echo "No backups found."
+        return
+    fi
+
+    backup_menu_options=()
+    for i in "${!backup_list[@]}"; do
+        num=$((i+1))
+        backup_menu_options+=("$num - ${backup_list[$i]}")
+    done
+    backup_menu_options+=("$(( ${#backup_list[@]} + 1 )) - Back")
+
+    selected=$(show_menu "${backup_menu_options[@]}")
+    selected_backup=$(echo "$selected" | sed 's/^[0-9]\+ - //')
+
+    if [[ "$selected_backup" == "Back" || -z "$selected_backup" ]]; then
+        main
+        return
+    fi
+
+    instance_name=$(echo "$selected_backup" | cut -d'_' -f1)
+    instance_path="$bedrux/instances/$instance_name"
+
+    confirm=$(input_menu "Restore will overwrite '$instance_name'. Continue? (y/n)" "Please try again." false true)
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+        echo "Restore cancelled."
+        return
+    fi
+
+    rm -rf "$instance_path"
+    mkdir -p "$instance_path"
+    unzip -q "$bedrux/backups/$selected_backup" -d "$instance_path" || { echo "Restore failed!"; return 1; }
+    echo "[✓] Instance '$instance_name' restored from backup."
+}
+
+delete_backup() {
+    if [[ -d "$bedrux/backups" ]]; then
+        mapfile -t backup_list < <(ls -1 "$bedrux/backups")
+    else
+        echo "No backups found."
+        return
+    fi
+
+    backup_menu_options=()
+    for i in "${!backup_list[@]}"; do
+        num=$((i+1))
+        backup_menu_options+=("$num - ${backup_list[$i]}")
+    done
+    backup_menu_options+=("$(( ${#backup_list[@]} + 1 )) - Back")
+
+    selected=$(show_menu "${backup_menu_options[@]}")
+    selected_backup=$(echo "$selected" | sed 's/^[0-9]\+ - //')
+
+    if [[ "$selected_backup" == "Back" || -z "$selected_backup" ]]; then
+        return
+    fi
+
+    confirm=$(input_menu "Delete backup '$selected_backup'? (y/n)" "Please try again." false true)
+    if [[ "$confirm" =~ ^[Yy]$ ]]; then
+        rm -f "$bedrux/backups/$selected_backup"
+        echo "[✓] Backup deleted."
+    else
+        echo "Deletion cancelled."
+    fi
+}
+
+delete_backup() {
+    if [[ -d "$bedrux/backups" ]]; then
+        mapfile -t backup_list < <(ls -1 "$bedrux/backups")
+    else
+        echo "No backups found."
+        return
+    fi
+
+    backup_menu_options=()
+    for i in "${!backup_list[@]}"; do
+        num=$((i+1))
+        backup_menu_options+=("$num - ${backup_list[$i]}")
+    done
+    backup_menu_options+=("$(( ${#backup_list[@]} + 1 )) - Back")
+
+    selected=$(show_menu "${backup_menu_options[@]}")
+    selected_backup=$(echo "$selected" | sed 's/^[0-9]\+ - //')
+
+    if [[ "$selected_backup" == "Back" || -z "$selected_backup" ]]; then
+        main
+        return
+    fi
+
+    confirm=$(input_menu "Delete backup '$selected_backup'? (y/n)" "Please try again." false true)
+    if [[ "$confirm" =~ ^[Yy]$ ]]; then
+        rm -f "$bedrux/backups/$selected_backup"
+        echo "[✓] Backup deleted."
+    else
+        echo "Deletion cancelled."
+    fi
+}
+
+# --- Menu Functions ---
+
+backup_options() {
+    options_backup=(
+        "1 - Create backup"
+        "2 - Restore backup"
+        "3 - Delete backup"
+        "4 - Back"
+    )
+    choice_backup=$(show_menu "${options_backup[@]}")
+    case "$choice_backup" in
+        "${options_backup[0]}")
+            backup_instance
+            ;;
+        "${options_backup[1]}")
+            restore_instance
+            ;;
+        "${options_backup[2]}")
+            delete_backup
+            ;;
+        "${options_backup[3]}")
+            main
+            return
+            ;;
+        *)
+            main
+            return
+            ;;
+    esac
+}
+
+manage_instances_menu() {
+    while true; do
+        options_instances=(
+            "1 - List instances"
+            "2 - Delete an instance"
+            "3 - Update instance"
+            "4 - Back"
+        )
+
+        choice_instance=$(show_menu "${options_instances[@]}")
+
+        case "$choice_instance" in
+            "${options_instances[0]}")
+                list_instances
+                ;;
+            "${options_instances[1]}")
+                delete_instance
+                ;;
+            "${options_instances[2]}")
+                update_instance
+                ;;
+            "${options_instances[3]}")
+                # Go back to main menu
+                main
+                return
+                ;;
+            *)
+                main
+                return
+                ;;
+        esac
+    done
+}
+
+create_instance_interactive() {
+    name=$(input_menu "Enter the instance name" "Instance name cannot be empty." false false)
+
+    if [[ "$name" == "Operation cancelled." ]]; then
+        main
+        return
+    fi
+
+    url=$(select_version)
+    download_version "$name" "$url"
+}
+
+# --- Main Menu ---
 
 main() {
     options=(
@@ -349,59 +640,18 @@ main() {
         "${options[0]}")
             start_instance 
             ;;
-
         "${options[1]}")
-            name=$(input_menu "Enter the instance name" "Instance name cannot be empty." false false)
-
-            if [[ "$name" == "Operation cancelled." ]]; then
-                exit
-            fi
-
-            url=$(select_version)
-            download_version "$name" "$url"
+            create_instance_interactive
             ;;
-
         "${options[2]}")
-            options_instances=(
-                "1 - List instances"
-                "2 - Delete an instance"
-                "3 - Update instance"
-                "4 - Back to main menu"
-            )
-
-            choice_instance=$(show_menu "${options_instances[@]}")
-
-            case "$choice_instance" in
-                "${options_instances[0]}")
-                    list_instances
-                    ;;
-
-                "${options_instances[1]}")
-                    delete_instance
-                    ;;
-
-                "${options_instances[2]}")
-                    update_instance
-                    ;;
-
-                "${options_instances[3]}")
-                    main
-                    return
-                    ;;
-                *)
-                    echo "Invalid option."
-                    ;;
-            esac
+            manage_instances_menu
             ;;
-
         "${options[3]}")
-            echo "Viewing instance details..."
+            view_instance_details
             ;;
-
         "${options[4]}")
-            echo "Backup options..."
+            backup_options
             ;;
-
         *)
             echo "Invalid option. Exiting."
             ;;
