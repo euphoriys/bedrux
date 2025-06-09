@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/bedrux.png" alt="Bedrux Logo" width="300" height="300">
+  <img src="assets/bedrux_logo.png" alt="Bedrux Logo" width="300" height="300">
   <h1 align="center">Bedrux</h1>
   <h3>Create a Minecraft Bedrock Dedicated Server using Termux on Android</h3>
 </div>
