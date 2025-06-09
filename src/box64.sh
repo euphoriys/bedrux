@@ -29,7 +29,11 @@ install_box64() {
     apt install box64-android -y
 }
 
+main () {
+    remove_existing_sources
+    add_box64_sources
+    install_box64
+}
+
 # Main script execution
-remove_existing_sources
-add_box64_sources
-install_box64
+main
