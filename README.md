@@ -8,14 +8,12 @@
 
 ## 🚀 Features
 
-- [x] Fetches the latest release or preview version of the Minecraft Bedrock server.
-- [x] Allows users to manually specify a version.
+- [x] Simple to use Bedrux Server Manager, to install, manage and backup server instances with ease.
+- [x] Fetches the latest release or preview or any specified version of the Minecraft Bedrock server.
 - [x] Downloads and validates the server files.
-- [x] Creates start and autostart scripts for server management.
 - [x] Backup and restore functionality for server instances.
-- [x] Supports creating, replacing, and overwriting server instances.
+- [x] Supports creating and replacing server instances.
 - [x] AMD64 and AARCH64 support.
-- [x] Automatic handling of downloads and unzipping with simple commands.
 
 ---
 
