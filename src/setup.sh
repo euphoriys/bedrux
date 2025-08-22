@@ -21,7 +21,7 @@ setup_debian_env() {
         set -e
         apt-get update > /dev/null 2>&1
         apt-get upgrade -y > /dev/null 2>&1
-        apt-get install -y fzf curl nano gpg > /dev/null 2>&1
+        apt-get install -y fzf curl nano > /dev/null 2>&1
 
         arch=$(uname -m)
         if [[ "$arch" == "aarch64" ]]; then
