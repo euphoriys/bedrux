@@ -4,20 +4,20 @@ clear
 set -e
 
 update_termux_packages() {
-    echo "Updating Termux packages and installing proot-distro..."
+    echo "Updating Termux packages and installing Proot-Distro..."
     yes | pkg up > /dev/null 2>&1
     pkg install proot-distro -y > /dev/null 2>&1
 }
 
-install_ubuntu() {
-    echo "Installing Ubuntu distribution in proot-distro..."
-    proot-distro install ubuntu > /dev/null 2>&1
+install_debian() {
+    echo "Installing Debian Trixie using Proot-Distro..."
+    proot-distro install debian > /dev/null 2>&1
 }
 
-setup_ubuntu_env() {
-    echo "Configuring Ubuntu environment and installing dependencies..."
+setup_debian_env() {
+    echo "Configuring Debian environment and installing dependencies..."
 
-    proot-distro login ubuntu -- bash -c '
+    proot-distro login debian -- bash -c '
         set -e
         apt-get update > /dev/null 2>&1
         apt-get upgrade -y > /dev/null 2>&1
@@ -26,13 +26,11 @@ setup_ubuntu_env() {
         arch=$(uname -m)
         if [[ "$arch" == "aarch64" ]]; then
             echo "Installing Box64 for ARM64 architecture..."
-            curl -s -O https://raw.githubusercontent.com/euphoriys/bedrux/main/src/box64.sh
-            bash box64.sh > /dev/null 2>&1
-            rm -f box64.sh
+            apt-get install -y box64 > /dev/null 2>&1
         elif [[ "$arch" == "x86_64" || "$arch" == "amd64" ]]; then
             echo "Skipping Box64 installation. CPU architecture is $arch."
         else
-            echo "Unsupported CPU architecture: $arch. Exiting."
+            echo "Unsupported CPU architecture: $arch. Exiting..."
             exit 1
         fi
 
@@ -45,11 +43,11 @@ setup_ubuntu_env() {
 
 main() {
     update_termux_packages
-    install_ubuntu
-    setup_ubuntu_env
+    install_debian
+    setup_debian_env
     echo "Environment setup completed!"
-    echo "To enter Ubuntu, run: pd sh ubuntu"
-    echo "To use the Bedrux Server Manager, run: svm"
+    echo "To enter Debian, run: pd sh debian"
+    echo "Then use the Bedrux Server Manager: svm"
 }
 
 main
