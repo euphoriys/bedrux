@@ -28,6 +28,7 @@ setup_debian_env() {
             echo "Installing Box64 for ARM64 architecture..."
             apt-get install -y box64 > /dev/null 2>&1
         elif [[ "$arch" == "x86_64" || "$arch" == "amd64" ]]; then
+            apt-get install -y libcurl4t64 > /dev/null 2>&1
             echo "Skipping Box64 installation. CPU architecture is $arch."
         else
             echo "Unsupported CPU architecture: $arch. Exiting..."
