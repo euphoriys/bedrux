@@ -26,6 +26,8 @@ setup_debian_env() {
         arch=$(uname -m)
         if [[ "$arch" == "aarch64" ]]; then
             echo "Installing Box64 for ARM64 architecture..."
+            echo "Configuring environment variables in order to increase performance..."
+            curl -s -O https://raw.githubusercontent.com/euphoriys/bedrux/main/src/.box64rc
             apt-get install -y box64 > /dev/null 2>&1
         elif [[ "$arch" == "x86_64" || "$arch" == "amd64" ]]; then
             apt-get install -y libcurl4t64 > /dev/null 2>&1
