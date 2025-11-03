@@ -28,7 +28,7 @@
 
 ### Starting your server
 After setup is complete:
-1. Enter the Debian environment with `pd sh ubuntu`
+1. Enter the Debian environment with `pd sh debian`
 2. Run `svm` to start the Bedrux Server Manager
 
 ---
