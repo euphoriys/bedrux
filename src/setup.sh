@@ -78,7 +78,7 @@ setup_debian() {
             echo "Installing Box64 for '$ARCH' architecture..."
             run_silent apt-get install -y box64
             echo "Configuring environment variables in order to increase performance..."
-            curl -s -O https://raw.githubusercontent.com/euphoriys/bedrux/main/src/.box64rc
+            curl -s -O https://raw.githubusercontent.com/theonuverse/bedrux/main/src/.box64rc
             ;;
         x86_64|amd64)
             echo "Skipping Box64 installation. CPU architecture: '$ARCH'"
@@ -91,7 +91,7 @@ setup_debian() {
     esac
 
     echo "Downloading Bedrux Server Manager (svm)..."
-    curl -s -O https://raw.githubusercontent.com/euphoriys/bedrux/main/src/svm
+    curl -s -O https://raw.githubusercontent.com/theonuverse/bedrux/main/src/svm
     chmod +x svm
     mv svm /usr/bin/svm
 }
