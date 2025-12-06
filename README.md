@@ -23,7 +23,7 @@
 > To set up your Minecraft Bedrock Server, fist download [Termux](https://f-droid.org/de/packages/com.termux/). Once installed, launch Termux and allow it to finish initial setup. Then run the following command to initialize the Bedrux environment:
 > 
 > ```bash
-> bash <(curl -s https://raw.githubusercontent.com/euphoriys/bedrux/main/src/setup.sh)
+> bash <(curl -s https://raw.githubusercontent.com/theonuverse/bedrux/main/src/setup.sh)
 > ```
 
 ### Starting your server
