@@ -27,7 +27,6 @@
 | 📊 **Live Server Stats** | Real-time CPU, RAM, and uptime monitoring |
 | 🎮 **Multi-Instance** | Run and manage multiple server instances |
 | ⚡ **Auto Architecture Detection** | Seamless AMD64/ARM64 support with Box64 integration |
-| 👾 **More Support** | WSL, Linux and the Android 16 Terminal are now supported | 
 
 ---
 
