@@ -1,0 +1,93 @@
+#!/bin/bash
+
+# --- Color Codes ---
+G='\033[1;35m' # Pastel Green
+B='\033[1;36m' # Pastel Cyan/Blue
+R='\033[1;31m' # Pastel Red
+N='\033[0m'    # Reset
+
+# --- Environment detection via Kernel Release ---
+detect_environment() {
+    local KERNEL_RELEASE=$(uname -r)
+    
+    case "$KERNEL_RELEASE" in
+        *"PRoot-Distro"*)
+            ENV="PROOT"
+            ;;
+        *"android"*)
+            ENV="TERMUX"
+            ;;
+        *"microsoft"*)
+            ENV="WSL"
+            ;;
+        *)
+            ENV="LINUX"
+            ;;
+    esac
+}
+
+# --- Function in order to run commands silently ---
+silent() {
+    if ! "$@" > /dev/null 2>&1; then
+        echo -e "${R}[!]${N} Error while executing: $*" >&2
+        return 1
+    fi
+}
+
+# --- Setup inside Termux ---
+update_termux() {
+    echo -e "${B}[+]${N} Updating Termux packages..."
+    silent pkg upgrade -y -o Dpkg::Options::="--force-confold"
+}
+
+# --- Select Bedrux Environment Image ---
+select_bedrux_image() {
+    local ARCH=$(uname -m)
+    case "$ARCH" in
+        aarch64)
+            IMAGE_URL="https://github.com/theonuverse/bedrux/releases/download/v1.0.0/bedrux_aarch64.tar.gz"
+            ;;
+        x86_64)
+            IMAGE_URL="https://github.com/theonuverse/bedrux/releases/download/v1.0.0/bedrux_x86_64.tar.gz"
+            ;;
+        *)
+            echo -e "${R}[!!]${N} Unsupported CPU architecture ($ARCH): Exiting..." >&2
+            exit 1
+            ;;
+    esac
+}
+
+# --- Installing Bedrux Environment ---
+bedrux_env_install() {
+    local ARCH=$(uname -m)
+
+    echo -e "${B}[+]${N} Installing PRoot Distro..."
+    silent pkg ins -y proot-distro
+
+    if [ -d "$PREFIX/var/lib/proot-distro/installed-rootfs/bedrux" ]; then
+        echo -e "${B}[-]${N} Removing existing Bedrux environment..."
+        silent pd remove bedrux
+    fi
+    
+    echo -e "${B}[+]${N} Installing Bedrux Environment ($ARCH) (this may take a while)..."
+    silent curl -L "$IMAGE_URL" -o bedrux_tmp
+    silent pd restore bedrux_tmp --alias bedrux
+    rm -f bedrux_tmp
+}
+
+main() {
+    detect_environment
+
+    if [ "$ENV" = "TERMUX" ]; then
+        update_termux
+        select_bedrux_image
+        bedrux_env_install
+    else
+        echo -e "${R}[!]${N} This script is optimized for Termux. Current Env: $ENV"
+        exit 1
+    fi
+
+    echo -e "${G}[v]${N} Setup finished successfully!"
+}
+
+main
