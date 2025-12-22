@@ -71,7 +71,7 @@ bedrux_env_install() {
     
     echo -e "${B}[+]${N} Installing Bedrux Environment ($ARCH) (this may take a while)..."
     silent curl -L "$IMAGE_URL" -o bedrux_tmp
-    silent pd restore bedrux_tmp --alias bedrux
+    silent pd restore bedrux_tmp
     rm -f bedrux_tmp
 }
 
