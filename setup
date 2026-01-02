@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # --- Color Codes ---
-G='\033[1;35m' # Pastel Green
-B='\033[1;36m' # Pastel Cyan/Blue
-R='\033[1;31m' # Pastel Red
-N='\033[0m'    # Reset
+G='\033[1;35m'
+B='\033[1;36m'
+R='\033[1;31m'
+N='\033[0m'
 
-# --- Environment detection via Kernel Release ---
+# --- Environment Detection ---
 detect_environment() {
     local KERNEL_RELEASE=$(uname -r)
     
@@ -17,7 +17,7 @@ detect_environment() {
         *"android"*)
             ENV="TERMUX"
             ;;
-        *"microsoft"*)
+        *"microsoft"* | *"Microsoft"*)
             ENV="WSL"
             ;;
         *)
@@ -26,7 +26,39 @@ detect_environment() {
     esac
 }
 
-# --- Function in order to run commands silently ---
+# --- Package Manager Detection ---
+detect_package_manager() {
+    if command -v apt-get &> /dev/null; then
+        PKG_MANAGER="apt"
+        PKG_UPDATE="apt-get update"
+        PKG_UPGRADE="apt-get upgrade -y"
+        PKG_INSTALL="apt-get install -y"
+    elif command -v dnf &> /dev/null; then
+        PKG_MANAGER="dnf"
+        PKG_UPDATE="dnf check-update || true"
+        PKG_UPGRADE="dnf upgrade -y"
+        PKG_INSTALL="dnf install -y"
+    else
+        echo -e "${R}[!]${N} No supported package manager found"
+        exit 1
+    fi
+}
+
+# --- Sudo Handler ---
+run_privileged() {
+    if [ "$(id -u)" -eq 0 ]; then
+        "$@"
+    elif command -v sudo &> /dev/null; then
+        sudo "$@"
+    elif command -v doas &> /dev/null; then
+        doas "$@"
+    else
+        echo -e "${R}[!]${N} Root privileges required but no sudo/doas available"
+        exit 1
+    fi
+}
+
+# --- Silent Execution ---
 silent() {
     if ! "$@" > /dev/null 2>&1; then
         echo -e "${R}[!]${N} Error while executing: $*" >&2
@@ -34,58 +66,153 @@ silent() {
     fi
 }
 
-# --- Setup inside Termux ---
+silent_privileged() {
+    if ! run_privileged "$@" > /dev/null 2>&1; then
+        echo -e "${R}[!]${N} Error while executing: $*" >&2
+        return 1
+    fi
+}
+
+# --- System Update (Termux) ---
 update_termux() {
     echo -e "${B}[+]${N} Updating Termux packages..."
     silent pkg upgrade -y -o Dpkg::Options::="--force-confold"
 }
 
-# --- Select Bedrux Environment Image ---
-select_bedrux_image() {
-    local ARCH=$(uname -m)
-    case "$ARCH" in
-        aarch64)
-            IMAGE_URL="https://github.com/theonuverse/bedrux/releases/download/v1.0.0/bedrux_aarch64.tar.gz"
-            ;;
-        x86_64)
-            IMAGE_URL="https://github.com/theonuverse/bedrux/releases/download/v1.0.0/bedrux_x86_64.tar.gz"
-            ;;
-        *)
-            echo -e "${R}[!!]${N} Unsupported CPU architecture ($ARCH): Exiting..." >&2
-            exit 1
-            ;;
-    esac
+# --- System Update (Linux/WSL) ---
+update_system() {
+    detect_package_manager
+    echo -e "${B}[+]${N} Updating system packages ($PKG_MANAGER)..."
+    silent_privileged $PKG_UPDATE
+    silent_privileged $PKG_UPGRADE
 }
 
-# --- Installing Bedrux Environment ---
-bedrux_env_install() {
+# --- Install Dependencies (Linux/WSL) ---
+install_dependencies() {
+    local DEPS=""
     local ARCH=$(uname -m)
+    
+    case "$PKG_MANAGER" in
+        apt)
+            DEPS="python3 python3-pip pipx git curl libcurl4t64"
+            if [ "$ARCH" = "aarch64" ]; then
+                DEPS="$DEPS box64"
+            fi
+            ;;
+        dnf)
+            DEPS="python3 python3-pip pipx git curl libcurl"
+            if [ "$ARCH" = "aarch64" ]; then
+                DEPS="$DEPS box64"
+            fi
+            ;;
+    esac
+    
+    echo -e "${B}[+]${N} Installing dependencies..."
+    silent_privileged $PKG_INSTALL $DEPS
+}
 
+# --- Create Box64 Config (aarch64 only) ---
+create_box64rc() {
+    local ARCH=$(uname -m)
+    if [ "$ARCH" = "aarch64" ]; then
+        echo -e "${B}[+]${N} Creating Box64 configuration..."
+        cat > ~/.box64rc << 'EOF'
+[bedrock_server]
+BOX64_DYNAREC_BIGBLOCK=4
+BOX64_DYNAREC_STRONGMEM=1
+BOX64_DYNAREC_FASTNAN=1
+BOX64_DYNAREC_FASTROUND=1
+BOX64_DYNAREC_PAUSE=1
+BOX64_DYNAREC_ALIGNED_ATOMICS=0
+BOX64_MMAP32=1
+EOF
+    fi
+}
+
+# --- Install Bedrux via pipx (Linux/WSL) ---
+install_bedrux() {
+    echo -e "${B}[+]${N} Installing Bedrux via pipx..."
+    silent pipx ensurepath
+    silent source ~/.bashrc
+    silent pipx install git+https://github.com/theonuverse/bedrux.git
+    create_box64rc
+}
+
+# --- Installing Bedrux Environment (Termux) ---
+bedrux_env_install() {
+    
     echo -e "${B}[+]${N} Installing PRoot Distro..."
     silent pkg ins -y proot-distro
 
     if [ -d "$PREFIX/var/lib/proot-distro/installed-rootfs/bedrux" ]; then
         echo -e "${B}[-]${N} Removing existing Bedrux environment..."
-        silent pd remove bedrux
+        silent pd rm bedrux
     fi
     
-    echo -e "${B}[+]${N} Installing Bedrux Environment ($ARCH) (this may take a while)..."
-    silent curl -L "$IMAGE_URL" -o bedrux_tmp
-    silent pd restore bedrux_tmp --alias bedrux
-    rm -f bedrux_tmp
+    echo -e "${B}[+]${N} Installing Bedrux Environment (Debian) might take a while..."
+    silent pd i --override-alias bedrux debian
+    
+    echo -e "${B}[+]${N} Setting up Bedrux inside PRoot..."
+    
+    silent pd sh bedrux -- bash -c '
+        DEPS="python3 python3-pip pipx git curl libcurl4t64"
+        ARCH=$(uname -m)
+
+        if [ "$ARCH" = "aarch64" ]; then
+            DEPS="$DEPS box64"
+        fi
+
+        apt-get update
+        apt-get upgrade -y
+        apt-get install -y $DEPS
+        pipx ensurepath
+        source ~/.bashrc
+        pipx install git+https://github.com/theonuverse/bedrux.git
+
+        if [ "$ARCH" = "aarch64" ]; then
+            cat > ~/.box64rc << EOF
+[bedrock_server]
+BOX64_DYNAREC_BIGBLOCK=4
+BOX64_DYNAREC_STRONGMEM=1
+BOX64_DYNAREC_FASTNAN=1
+BOX64_DYNAREC_FASTROUND=1
+BOX64_DYNAREC_PAUSE=1
+BOX64_DYNAREC_ALIGNED_ATOMICS=0
+BOX64_MMAP32=1
+EOF
+        fi
+    '
+}
+
+# --- Setup for Termux ---
+setup_termux() {
+    update_termux
+    bedrux_env_install
+}
+
+# --- Setup for Linux/WSL ---
+setup_linux() {
+    update_system
+    install_dependencies
+    install_bedrux
 }
 
 main() {
     detect_environment
 
-    if [ "$ENV" = "TERMUX" ]; then
-        update_termux
-        select_bedrux_image
-        bedrux_env_install
-    else
-        echo -e "${R}[!]${N} This script is optimized for Termux. Current Env: $ENV"
-        exit 1
-    fi
+    case "$ENV" in
+        PROOT)
+            echo -e "${R}[!]${N} This command does not work inside PRoot."
+            echo -e "${R}[!]${N} Please run this script in native Termux."
+            exit 1
+            ;;
+        TERMUX)
+            setup_termux
+            ;;
+        WSL|LINUX)
+            setup_linux
+            ;;
+    esac
 
     echo -e "${G}[v]${N} Setup finished successfully!"
 }

@@ -1,33 +1,61 @@
 <div align="center">
   <img src="assets/bedrux_logo.png" alt="Bedrux Logo" width="300" height="300">
   
-  # 🎮 Bedrux v1.0.0
+  # 🎮 Bedrux v1.1.0
   
-  ### **Minecraft Bedrock Dedicated Server on Android — Powered by Termux**
+  ### **Minecraft Bedrock Dedicated Server on Android, Linux & WSL**
   
-  [![Version](https://img.shields.io/badge/version-1.0.0-blueviolet?style=for-the-badge)](https://github.com/theonuverse/bedrux)
+  [![Version](https://img.shields.io/badge/version-1.1.0-blueviolet?style=for-the-badge)](https://github.com/theonuverse/bedrux)
   [![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)](LICENSE)
-  [![Platform](https://img.shields.io/badge/platform-Android%20%7C%20Linux-orange?style=for-the-badge)](https://github.com/theonuverse/bedrux)
+  [![Platform](https://img.shields.io/badge/platform-Android%20%7C%20Linux%20%7C%20WSL-orange?style=for-the-badge)](https://github.com/theonuverse/bedrux)
   
   <br>
   
-  **🎉 Version 1.0.0 is here! Introducing the all-new Bedrux TUI — a beautiful, modern terminal interface for managing your Minecraft servers.**
+  **🎉 Version 1.1.0 is here! Now with full Linux & WSL support!**
 
 </div>
 
 ---
 
-## ✨ What's New in v1.0.0
+## 🖥️ Supported Platforms
+
+### x86_64 (AMD64)
+
+| | Distro (+WSL) | Support |
+|:---:|--------|:-------:|
+| <img src="https://cdn.simpleicons.org/ubuntu" width="20"> | **Ubuntu** | ✅ |
+| <img src="https://cdn.simpleicons.org/debian" width="20"> | **Debian** | ✅ |
+| <img src="https://cdn.simpleicons.org/fedora" width="20"> | **Fedora** | ✅ |
+| <img src="https://cdn.simpleicons.org/android" width="20"> | **Termux (PRoot)** | ✅ |
+
+### aarch64 (ARM64)
+
+| | Distro | Minimum Version | Support |
+|:---:|--------|:---------------:|:-------:|
+| <img src="https://cdn.simpleicons.org/ubuntu" width="20"> | **Ubuntu** | 24.04+ | ✅ |
+| <img src="https://cdn.simpleicons.org/debian" width="20"> | **Debian** | 13+ | ✅ |
+| <img src="https://cdn.simpleicons.org/fedora" width="20"> | **Fedora** | 41+ | ✅ |
+| <img src="https://cdn.simpleicons.org/android" width="20"> | **Termux (PRoot)** | — | ✅ |
+
+> [!WARNING]
+> **Alpine Linux / postmarketOS not supported!**  
+> These distributions use **musl** instead of **glibc**, which is incompatible with the Bedrock server and Box64.  
+> **Workaround:** Use a chroot/proot environment or Docker container with a glibc-based distro. Might need to compile Box64 if it is not in the repos.
+
+---
+
+## ✨ What's New in v1.1.0
 
 | Feature | Description |
 |---------|-------------|
+| 🐧 **Linux/WSL Support** | Native support for Ubuntu, Debian, Fedora |
+| 🔧 **ARM64 Linux Support** | Box64 auto-installation on supported ARM64 distros |
 | 🖥️ **Modern TUI** | Beautiful terminal user interface built with [Textual](https://textual.textualize.io/) |
 | 📦 **One-Click Install** | Download and install any Bedrock server version with a single click |
 | 💾 **Backup & Restore** | Create, manage, and restore server backups effortlessly |
 | 📊 **Live Server Stats** | Real-time CPU, RAM, and uptime monitoring |
 | 🎮 **Multi-Instance** | Run and manage multiple server instances |
-| ⚡ **Auto Architecture Detection** | Seamless AMD64/ARM64 support with Box64 integration |
-| 👾 **More Support** | WSL, Linux and the Android 16 Terminal are now supported | 
+| ⚡ **Auto Architecture Detection** | Seamless AMD64/ARM64 support with Box64 integration | 
 
 ---
 
@@ -47,17 +75,23 @@
 ## ⚡ Quick Start
 
 > [!IMPORTANT]
-> **Requirements:** Download [Termux from F-Droid](https://f-droid.org/de/packages/com.termux/) (not Play Store version).
+> **Termux Users:** Download [Termux from F-Droid](https://f-droid.org/de/packages/com.termux/) (not Play Store version).
 
-### 1️⃣ Install Bedrux Environment
+> [!IMPORTANT]
+> **Linux/WSL Users:** You may need to run the installer with `sudo` depending on your system configuration.
 
-Open Termux and run:
+### 1️⃣ Install Bedrux
+
+Open your terminal and run:
 
 ```bash
-curl -L theonuverse.github.io/bedrux/setup | bash
+curl -sL theonuverse.github.io/bedrux/setup | bash
 ```
 
-### 2️⃣ Enter Bedrux Environment
+> [!TIP]
+> **After installation**, you may need to restart your terminal or run `source ~/.bashrc` for the `bedrux` command to be available (Linux/WSL only).
+
+### 2️⃣ Enter Bedrux Environment (Termux only)
 
 ```bash
 pd sh bedrux
@@ -104,13 +138,25 @@ Once your server is running, you can:
 
 ### 🔧 ARM64 Compatibility
 
-The Minecraft Bedrock Dedicated Server is built for AMD64 architecture. On ARM64 devices (most Android phones), Bedrux automatically uses [Box64](https://github.com/ptitSeb/box64) for translation.
+The Minecraft Bedrock Dedicated Server is built for AMD64 architecture. On ARM64 devices (most Android phones, Raspberry Pi, ARM-based servers), Bedrux automatically uses [Box64](https://github.com/ptitSeb/box64) for translation.
 
 > [!WARNING]
 > **Performance varies by device.** ARM64 emulation may cause reduced performance compared to native AMD64. For best results, use a device with at least 4GB RAM.
 
 > [!WARNING]
 > **CPU monitor unavailable on Termux:** Termux does not expose per-process CPU usage to unprivileged apps. As a result, Bedrux's live CPU monitor will be unavailable or show inaccurate values when running inside Termux environments. RAM, uptime, logs and server management features still function normally.
+
+### 🌐 Network Configuration
+
+> [!NOTE]
+> **Port Forwarding:** To allow players outside your local network to connect, you need to forward **TCP & UDP port 19132** (default) on your router to your device's local IP address.
+
+> [!NOTE]
+> **Firewall:** On Linux systems, ensure your firewall allows incoming TCP & UDP traffic on port 19132:
+> ```bash
+> sudo ufw allow 19132  # Ubuntu/Debian
+> sudo firewall-cmd --add-port=19132/tcp --add-port=19132/udp --permanent && sudo firewall-cmd --reload  # Fedora
+> ```
 
 ### 📂 Data Storage
 
@@ -165,7 +211,7 @@ Check your internet connection. Bedrux downloads directly from Minecraft's offic
 </details>
 
 <details>
-<summary><b>High CPU usage on ARM64</b></summary>
+<summary><b>High CPU and RAM usage on ARM64</b></summary>
 
 This is expected due to Box64 translation. Consider reducing view distance and simulation distance in `server.properties`.
 </details>
